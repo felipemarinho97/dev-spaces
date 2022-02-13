@@ -25,3 +25,13 @@ func IsDevSpace(tags []types.Tag, devSpaceName string) bool {
 
 	return false
 }
+
+func GetTag(tags []types.Tag, key string) string {
+	for _, tag := range tags {
+		if *tag.Key == key {
+			return *tag.Value
+		}
+	}
+
+	return ""
+}
