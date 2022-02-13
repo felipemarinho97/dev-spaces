@@ -1,4 +1,4 @@
-module github.com/felipemarinho97/dev-space
+module github.com/felipemarinho97/dev-spaces
 
 go 1.17
 
