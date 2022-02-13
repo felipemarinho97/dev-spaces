@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/felipemarinho97/dev-spaces/handlers"
 	"github.com/urfave/cli/v2"
 )
 
@@ -23,6 +24,11 @@ func main() {
 				Name:   "start",
 				Action: handlers.Create,
 				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "name",
+						Aliases: []string{"n"},
+						Value:   "",
+					},
 					&cli.IntFlag{
 						Name:    "min-cpus",
 						Aliases: []string{"c"},
@@ -33,11 +39,22 @@ func main() {
 						Aliases: []string{"m"},
 						Value:   1,
 					},
+					&cli.StringFlag{
+						Name:  "max-price",
+						Value: "0.08",
+					},
 				},
 			},
 			{
 				Name:   "stop",
 				Action: handlers.Stop,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "name",
+						Aliases: []string{"n"},
+						Value:   "",
+					},
+				},
 			},
 		},
 	}

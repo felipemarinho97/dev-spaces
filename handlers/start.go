@@ -1,23 +1,25 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/felipemarinho97/invest-path/util"
+	awsUtil "github.com/felipemarinho97/invest-path/util"
 	uuid "github.com/satori/go.uuid"
 	"github.com/urfave/cli/v2"
 )
 
 func Create(c *cli.Context) error {
+	ctx := c.Context
 	memorySpec := c.Int("min-memory")
 	cpusSpec := c.Int("min-cpus")
+	maxPrice := c.String("max-price")
+	name := c.String("name")
 
-	config, err := util.LoadAWSConfig()
+	config, err := awsUtil.LoadAWSConfig()
 	config.Region = "us-east-1"
 	if err != nil {
 		return err
@@ -25,7 +27,7 @@ func Create(c *cli.Context) error {
 
 	client := ec2.NewFromConfig(config)
 
-	out, err := client.RequestSpotFleet(context.Background(), &ec2.RequestSpotFleetInput{
+	out, err := client.RequestSpotFleet(ctx, &ec2.RequestSpotFleetInput{
 		SpotFleetRequestConfig: &types.SpotFleetRequestConfigData{
 			TagSpecifications: []types.TagSpecification{
 				{
@@ -33,7 +35,11 @@ func Create(c *cli.Context) error {
 					Tags: []types.Tag{
 						{
 							Key:   aws.String("managed-by"),
-							Value: aws.String("dev-space"),
+							Value: aws.String("dev-spaces"),
+						},
+						{
+							Key:   aws.String("dev-spaces:name"),
+							Value: &name,
 						},
 					},
 				},
@@ -55,7 +61,7 @@ func Create(c *cli.Context) error {
 					Overrides: []types.LaunchTemplateOverrides{
 						{
 							AvailabilityZone: aws.String("us-east-1d"),
-							SpotPrice:        aws.String("0.08"),
+							SpotPrice:        &maxPrice,
 							InstanceRequirements: &types.InstanceRequirements{
 								VCpuCount: &types.VCpuCountRange{
 									Min: aws.Int32(int32(cpusSpec)),
@@ -70,7 +76,7 @@ func Create(c *cli.Context) error {
 					},
 				},
 			},
-			SpotMaxTotalPrice: aws.String("0.08"),
+			SpotMaxTotalPrice: &maxPrice,
 		},
 	})
 
@@ -84,7 +90,7 @@ func Create(c *cli.Context) error {
 
 	for {
 		time.Sleep(time.Second * 1)
-		out2, err := client.DescribeSpotFleetInstances(context.Background(), &ec2.DescribeSpotFleetInstancesInput{
+		out2, err := client.DescribeSpotFleetInstances(ctx, &ec2.DescribeSpotFleetInstancesInput{
 			SpotFleetRequestId: id,
 		})
 		if err != nil {

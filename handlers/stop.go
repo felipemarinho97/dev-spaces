@@ -1,18 +1,21 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/felipemarinho97/dev-spaces/util"
+	awsUtil "github.com/felipemarinho97/invest-path/util"
 	"github.com/urfave/cli/v2"
 )
 
 func Stop(c *cli.Context) error {
-	config, err := util.LoadAWSConfig()
+	ctx := c.Context
+	name := c.String("name")
+
+	config, err := awsUtil.LoadAWSConfig()
 	config.Region = "us-east-1"
 	if err != nil {
 		return err
@@ -20,7 +23,7 @@ func Stop(c *cli.Context) error {
 
 	client := ec2.NewFromConfig(config)
 
-	requests, err := client.DescribeSpotFleetRequests(context.Background(), &ec2.DescribeSpotFleetRequestsInput{})
+	requests, err := client.DescribeSpotFleetRequests(ctx, &ec2.DescribeSpotFleetRequestsInput{})
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -30,13 +33,13 @@ func Stop(c *cli.Context) error {
 	for _, request := range requests.SpotFleetRequestConfigs {
 		if (request.SpotFleetRequestState == types.BatchStateActive ||
 			request.SpotFleetRequestState == types.BatchStateSubmitted) &&
-			util.IsManaged(request.Tags) {
+			util.IsManaged(request.Tags) && util.IsDevSpace(request.Tags, name) {
 			requestID = append(requestID, *request.SpotFleetRequestId)
 			break
 		}
 	}
 
-	_, err = client.CancelSpotFleetRequests(context.Background(), &ec2.CancelSpotFleetRequestsInput{
+	_, err = client.CancelSpotFleetRequests(ctx, &ec2.CancelSpotFleetRequestsInput{
 		SpotFleetRequestIds: requestID,
 		TerminateInstances:  aws.Bool(true),
 	})
