@@ -14,6 +14,8 @@ import (
 func Stop(c *cli.Context) error {
 	ctx := c.Context
 	name := c.String("name")
+	ub := util.NewUnknownBar("Stopping...")
+	ub.Start()
 
 	config, err := awsUtil.LoadAWSConfig()
 	config.Region = "us-east-1"
@@ -39,14 +41,23 @@ func Stop(c *cli.Context) error {
 		}
 	}
 
+	if len(requestID) == 0 {
+		ub.Stop()
+		fmt.Println("OK")
+		return nil
+	}
+
 	_, err = client.CancelSpotFleetRequests(ctx, &ec2.CancelSpotFleetRequestsInput{
 		SpotFleetRequestIds: requestID,
 		TerminateInstances:  aws.Bool(true),
 	})
 	if err != nil {
+		ub.Stop()
 		fmt.Println(err)
 		return err
 	}
 
+	ub.Stop()
+	fmt.Println("OK")
 	return nil
 }

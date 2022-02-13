@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/felipemarinho97/dev-spaces/util"
 	awsUtil "github.com/felipemarinho97/invest-path/util"
 	uuid "github.com/satori/go.uuid"
 	"github.com/urfave/cli/v2"
@@ -58,7 +59,7 @@ func Create(c *cli.Context) error {
 			InstanceInterruptionBehavior:     types.InstanceInterruptionBehaviorTerminate,
 			TerminateInstancesWithExpiration: aws.Bool(true),
 			ValidFrom:                        aws.Time(now),
-			ValidUntil:                       aws.Time(now.Add(timeout).UTC()),
+			ValidUntil:                       aws.Time(now.Add(timeout)),
 			Type:                             types.FleetTypeRequest,
 			LaunchTemplateConfigs: []types.LaunchTemplateConfig{
 				{
@@ -96,18 +97,23 @@ func Create(c *cli.Context) error {
 	id := out.SpotFleetRequestId
 	fmt.Printf("spot-request-id=%v\n", *id)
 
+	ub := util.NewUnknownBar("Waiting for instance request to be fulfilled...")
+	ub.Start()
+
 	for {
 		time.Sleep(time.Second * 1)
 		out2, err := client.DescribeSpotFleetInstances(ctx, &ec2.DescribeSpotFleetInstancesInput{
 			SpotFleetRequestId: id,
 		})
 		if err != nil {
+			ub.Stop()
 			fmt.Println(err)
 			return err
 		}
 
 		if len(out2.ActiveInstances) > 0 {
 			instance := out2.ActiveInstances[0]
+			ub.Stop()
 			fmt.Printf("instance-id=%v\n", *instance.InstanceId)
 			fmt.Printf("instance-type=%v\n", *instance.InstanceType)
 			break

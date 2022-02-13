@@ -8,6 +8,7 @@ require (
 	github.com/felipemarinho97/invest-path/util v1.0.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/satori/go.uuid v1.2.0
+	github.com/schollz/progressbar/v3 v3.8.6
 	github.com/urfave/cli/v2 v2.3.0
 )
 
@@ -24,7 +25,12 @@ require (
 	github.com/aws/smithy-go v1.10.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/mattn/go-runewidth v0.0.9 // indirect
+	github.com/mattn/go-runewidth v0.0.13 // indirect
+	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
+	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838 // indirect
+	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27 // indirect
+	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 )

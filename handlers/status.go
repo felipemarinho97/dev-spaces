@@ -47,7 +47,9 @@ func Status(c *cli.Context) error {
 		}
 	}
 	sort.Slice(data, func(i, j int) bool {
-		return true
+		di := data[i][3]
+		dj := data[j][3]
+		return di > dj
 	})
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -74,7 +76,7 @@ func Status(c *cli.Context) error {
 	table.SetCenterSeparator("")
 	table.SetColumnSeparator("")
 	table.SetRowSeparator("")
-	table.SetHeaderLine(false)
+	table.SetHeaderLine(true)
 	table.SetBorder(false)
 	table.SetTablePadding("\t") // pad with tabs
 	table.SetNoWhiteSpace(true)
