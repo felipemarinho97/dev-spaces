@@ -2,7 +2,7 @@
 
 This is a CLI to help creating on-demand development spaces using EC2 Spot Intances.
 
-Currently, the followind commands are availble:
+Currently, the following commands are availble:
 * start
 * stop
 * status
@@ -19,16 +19,35 @@ AUTHOR:
    Felipe Marinho <felipevm97@gmail.com>
 
 COMMANDS:
-   start    
-   stop     
-   status   
+   start    --help
+   stop     --help
+   status   --help
    help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
    --help, -h  show help (default: false)
 ```
 
-## Exemples
+# FAQ
+
+## What is a DevSpace?
+A DevSpace is a elastic development environment on AWS. Because there is no need to build a machine if you can cheaply develop on the Cloud!
+
+
+## How I can use it?
+
+Right now, this CLI only help managing DevSpaces and is using a _hardcoded_ EC2 Launch Template. It's not possible to bootstrap launch templates via the CLI yet.
+
+If you really want to use this, contact the author for more details on how to manualy bootstrap your EC2 Launch Template.
+
+## My progress is lost when I stop my DevSpace?
+
+No! When you `stop` a DevSpace, the CLI only destroys the instance, leaving the attached EBS Volume intact.
+When you call `start` again, the EBS Volume will be attached on the new instance and you can just continue from the point you stop.
+
+This means you are running a _stateful_ workloads on spot instances.
+
+# Exemples
 ### Starting a DevSpace
 
 You can specify the minimum desired vCPUs and Memory (GBs), as well the max price (in hours) you are willing to pay for the resources.
@@ -61,21 +80,3 @@ Note: If you want to destroy all running DevSpaces, ommit the `--name` parameter
 ```bash
 $ dev-spaces stop -n MySpace
 ```
-# FAQ
-
-## What is a DevSpace?
-A DevSpace is a elastic development environment on AWS. Because there is no need to build a machine if you can cheaply develop on the Cloud!
-
-
-## How I can use it?
-
-Right now, this CLI only help managing DevSpaces and is using a _hardcoded_ EC2 Launch Template. It's not possible to bootstrap launch templates via the CLI yet.
-
-If you really want to use this, contact the author for more details on how to manualy bootstrap your EC2 Launch Template.
-
-## My progress is lost when I stop my DevSpace?
-
-No! When you `stop` a DevSpace, the CLI only destroys the instance, leaving the attached EBS Volume intact.
-When you call `start` again, the EBS Volume will be attached on the new instance and you can just continue from the point you stop.
-
-This means you are running a _stateful_ workloads on spot instances.
