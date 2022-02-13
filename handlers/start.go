@@ -18,6 +18,12 @@ func Create(c *cli.Context) error {
 	cpusSpec := c.Int("min-cpus")
 	maxPrice := c.String("max-price")
 	name := c.String("name")
+	if name == "" {
+		name = uuid.NewV4().String()
+	}
+	timeout := c.Duration("timeout")
+	now := time.Now()
+	now = time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), 0, time.UTC)
 
 	config, err := awsUtil.LoadAWSConfig()
 	config.Region = "us-east-1"
@@ -51,6 +57,8 @@ func Create(c *cli.Context) error {
 			ExcessCapacityTerminationPolicy:  types.ExcessCapacityTerminationPolicyDefault,
 			InstanceInterruptionBehavior:     types.InstanceInterruptionBehaviorTerminate,
 			TerminateInstancesWithExpiration: aws.Bool(true),
+			ValidFrom:                        aws.Time(now),
+			ValidUntil:                       aws.Time(now.Add(timeout).UTC()),
 			Type:                             types.FleetTypeRequest,
 			LaunchTemplateConfigs: []types.LaunchTemplateConfig{
 				{
