@@ -13,7 +13,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func Create(c *cli.Context) error {
+func Start(c *cli.Context) error {
 	ctx := c.Context
 	memorySpec := c.Int("min-memory")
 	cpusSpec := c.Int("min-cpus")

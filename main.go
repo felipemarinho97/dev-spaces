@@ -33,7 +33,7 @@ func main() {
 		{
 			Name:        "start",
 			Description: "Starts the dev environment by placing a spot request",
-			Action:      handlers.Create,
+			Action:      handlers.Start,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "name",
@@ -75,6 +75,17 @@ func main() {
 		{
 			Name:   "status",
 			Action: handlers.Status,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "name",
+					Aliases: []string{"n"},
+					Value:   "",
+				},
+			},
+		},
+		{
+			Name:   "create",
+			Action: handlers.Create,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "name",
