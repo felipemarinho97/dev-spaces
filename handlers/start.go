@@ -23,7 +23,7 @@ func Create(c *cli.Context) error {
 		name = uuid.NewV4().String()
 	}
 	timeout := c.Duration("timeout")
-	now := time.Now()
+	now := time.Now().UTC()
 	now = time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), 0, time.UTC)
 
 	config, err := awsUtil.LoadAWSConfig()

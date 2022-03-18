@@ -41,7 +41,7 @@ func Status(c *cli.Context) error {
 				util.GetTag(request.Tags, "dev-spaces:name"),
 				string(request.SpotFleetRequestState),
 				*request.SpotFleetRequestId,
-				string(request.CreateTime.Format(time.RFC3339)),
+				string(request.CreateTime.Local().Format(time.RFC3339)),
 				string(request.ActivityStatus),
 			})
 		}
