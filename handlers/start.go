@@ -37,6 +37,11 @@ func Create(c *cli.Context) error {
 
 	minMemory := aws.Int32(int32(float64(1024) * memorySpec))
 
+	template, err := getLaunchTemplateByName(ctx, client, tName)
+	if err != nil {
+		return err
+	}
+
 	out, err := client.RequestSpotFleet(ctx, &ec2.RequestSpotFleetInput{
 		SpotFleetRequestConfig: &types.SpotFleetRequestConfigData{
 			TagSpecifications: []types.TagSpecification{
@@ -63,7 +68,8 @@ func Create(c *cli.Context) error {
 					},
 					Overrides: []types.LaunchTemplateOverrides{
 						{
-							SpotPrice: &maxPrice,
+							SpotPrice:        &maxPrice,
+							AvailabilityZone: aws.String(util.GetTag(template.Tags, "dev-spaces:zone")),
 							InstanceRequirements: &types.InstanceRequirements{
 								VCpuCount: &types.VCpuCountRange{
 									Min: aws.Int32(int32(cpusSpec)),

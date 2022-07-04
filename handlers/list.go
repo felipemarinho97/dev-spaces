@@ -119,6 +119,21 @@ func getLaunchTemplates(ctx context.Context, client *ec2.Client) (*ec2.DescribeL
 	return launchTemplates, nil
 }
 
+func getLaunchTemplateByName(ctx context.Context, client *ec2.Client, name string) (*types.LaunchTemplate, error) {
+	launchTemplates, err := getLaunchTemplates(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, launchTemplate := range launchTemplates.LaunchTemplates {
+		if *launchTemplate.LaunchTemplateName == name {
+			return &launchTemplate, nil
+		}
+	}
+
+	return nil, fmt.Errorf("launch template not found")
+}
+
 func getManagedInstances(ctx context.Context, client *ec2.Client) (map[string]*types.Instance, error) {
 	instances, err := client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 		Filters: []types.Filter{
@@ -137,6 +152,12 @@ func getManagedInstances(ctx context.Context, client *ec2.Client) (map[string]*t
 	for _, instance := range instances.Reservations {
 		for _, i := range instance.Instances {
 			name := util.GetTag(i.Tags, "dev-spaces:name")
+
+			if inst := managedInstances[name]; inst != nil {
+				if inst.LaunchTime.After(*i.LaunchTime) {
+					continue
+				}
+			}
 			managedInstances[name] = &i
 		}
 	}
