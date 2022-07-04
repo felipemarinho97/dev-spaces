@@ -190,21 +190,3 @@ func (ds *DestroySpec) getLaunchTemplate(ctx context.Context, templateName strin
 
 	return &launchTemplates.LaunchTemplates[0], nil
 }
-
-// {
-// 			Name:        "list",
-// 			Description: "List all the dev spaces",
-// 			Action:      handlers.ListTemplates,
-// 			Flags: []cli.Flag{
-// 				&cli.StringFlag{
-// 					Name:  "region",
-// 					Value: os.Getenv("AWS_REGION"),
-// 				},
-// 				&cli.StringFlag{
-// 					Name:    "output",
-// 					Usage:   "Output format: short or wide",
-// 					Aliases: []string{"o"},
-// 					Value:   "short",
-// 				},
-// 			},
-// 		},
