@@ -1,0 +1,192 @@
+package handlers
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/felipemarinho97/dev-spaces/util"
+	awsUtil "github.com/felipemarinho97/invest-path/util"
+	"github.com/urfave/cli/v2"
+)
+
+type DestroySpec struct {
+	ec2Client *ec2.Client
+	ub        *util.UnknownBar
+}
+
+func Destroy(c *cli.Context) error {
+	ctx := c.Context
+	name := c.String("name")
+	region := c.String("region")
+	ub := util.NewUnknownBar("Destroying...")
+	ub.Start()
+
+	if name == "" {
+		return errors.New("name is required")
+	}
+
+	if region == "" {
+		return errors.New("region is required")
+	}
+
+	config, err := awsUtil.LoadAWSConfig()
+	config.Region = region
+	if err != nil {
+		return err
+	}
+
+	client := ec2.NewFromConfig(config)
+	ds := &DestroySpec{
+		ec2Client: client,
+		ub:        ub,
+	}
+
+	// Destroy spot requests
+	err = cancelSpotRequest(ctx, client, name, ub)
+	if err != nil {
+		return err
+	}
+
+	// Destroy security groups
+	err = ds.destroySecurityGroups(ctx, name)
+	if err != nil {
+		return err
+	}
+
+	// Destroy launch templates
+	err = ds.destroyLaunchTemplate(ctx, name)
+	if err != nil {
+		return err
+	}
+
+	// Destroy all the created volumes for this template
+	err = ds.destroyVolumes(ctx, name)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ds *DestroySpec) destroyVolumes(ctx context.Context, templateName string) error {
+	volumes, err := ds.getVolumes(ctx, templateName)
+	if err != nil {
+		return err
+	}
+
+	for _, volume := range volumes {
+		ds.ub.SetDescription(fmt.Sprintf("Destroying volume %s", *volume.VolumeId))
+		_, err := ds.ec2Client.DeleteVolume(ctx, &ec2.DeleteVolumeInput{
+			VolumeId: volume.VolumeId,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ds *DestroySpec) getVolumes(ctx context.Context, templateName string) ([]types.Volume, error) {
+	volumes, err := ds.ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+		Filters: []types.Filter{
+			{
+				Name:   aws.String("tag:managed-by"),
+				Values: []string{"dev-spaces"},
+			},
+			{
+				Name:   aws.String("tag:dev-spaces:name"),
+				Values: []string{templateName},
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return volumes.Volumes, nil
+}
+
+func (ds *DestroySpec) destroySecurityGroups(ctx context.Context, templateName string) error {
+	securityGroups, err := ds.getSecurityGroups(ctx, templateName)
+	if err != nil {
+		return err
+	}
+
+	for _, securityGroup := range securityGroups {
+		ds.ub.SetDescription(fmt.Sprintf("Destroying security group %s", *securityGroup.GroupId))
+		_, err := ds.ec2Client.DeleteSecurityGroup(ctx, &ec2.DeleteSecurityGroupInput{
+			GroupId: securityGroup.GroupId,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ds *DestroySpec) getSecurityGroups(ctx context.Context, templateName string) ([]types.SecurityGroup, error) {
+	securityGroups, err := ds.ec2Client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
+		Filters: []types.Filter{
+			{
+				Name:   aws.String("tag:managed-by"),
+				Values: []string{"dev-spaces"},
+			},
+			{
+				Name:   aws.String("tag:dev-spaces:name"),
+				Values: []string{templateName},
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return securityGroups.SecurityGroups, nil
+}
+
+func (ds *DestroySpec) destroyLaunchTemplate(ctx context.Context, templateName string) error {
+	launchTemplate, err := ds.getLaunchTemplate(ctx, templateName)
+	if err != nil {
+		return err
+	}
+
+	ds.ub.SetDescription(fmt.Sprintf("Destroying launch template %s", *launchTemplate.LaunchTemplateId))
+	_, err = ds.ec2Client.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{
+		LaunchTemplateId: launchTemplate.LaunchTemplateId,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ds *DestroySpec) getLaunchTemplate(ctx context.Context, templateName string) (*types.LaunchTemplate, error) {
+	launchTemplates, err := ds.ec2Client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
+		Filters: []types.Filter{
+			{
+				Name:   aws.String("tag:managed-by"),
+				Values: []string{"dev-spaces"},
+			},
+			{
+				Name:   aws.String("tag:dev-spaces:name"),
+				Values: []string{templateName},
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(launchTemplates.LaunchTemplates) == 0 {
+		return nil, errors.New("no launch template found")
+	}
+
+	return &launchTemplates.LaunchTemplates[0], nil
+}

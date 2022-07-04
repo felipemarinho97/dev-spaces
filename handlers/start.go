@@ -15,40 +15,35 @@ import (
 
 func Create(c *cli.Context) error {
 	ctx := c.Context
-	memorySpec := c.Int("min-memory")
+	memorySpec := c.Float64("min-memory")
 	cpusSpec := c.Int("min-cpus")
 	maxPrice := c.String("max-price")
 	name := c.String("name")
 	if name == "" {
 		name = uuid.NewV4().String()
 	}
+	tName, tVersion := util.GetTemplateNameAndVersion(name)
 	timeout := c.Duration("timeout")
+	az := c.String("availability-zone")
 	now := time.Now().UTC()
 	now = time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), 0, time.UTC)
 
 	config, err := awsUtil.LoadAWSConfig()
-	config.Region = "us-east-1"
+	config.Region = c.String("region")
 	if err != nil {
 		return err
 	}
 
 	client := ec2.NewFromConfig(config)
 
+	minMemory := aws.Int32(int32(float64(1024) * memorySpec))
+
 	out, err := client.RequestSpotFleet(ctx, &ec2.RequestSpotFleetInput{
 		SpotFleetRequestConfig: &types.SpotFleetRequestConfigData{
 			TagSpecifications: []types.TagSpecification{
 				{
-					ResourceType: "spot-fleet-request",
-					Tags: []types.Tag{
-						{
-							Key:   aws.String("managed-by"),
-							Value: aws.String("dev-spaces"),
-						},
-						{
-							Key:   aws.String("dev-spaces:name"),
-							Value: &name,
-						},
-					},
+					ResourceType: types.ResourceTypeSpotFleetRequest,
+					Tags:         util.GenerateTags(name),
 				},
 			},
 			TargetCapacity:                   aws.Int32(1),
@@ -64,22 +59,22 @@ func Create(c *cli.Context) error {
 			LaunchTemplateConfigs: []types.LaunchTemplateConfig{
 				{
 					LaunchTemplateSpecification: &types.FleetLaunchTemplateSpecification{
-						LaunchTemplateId: aws.String("lt-000fa06f877b3cc29"),
-						Version:          aws.String("5"),
+						LaunchTemplateName: &tName,
+						Version:            &tVersion,
 					},
 					Overrides: []types.LaunchTemplateOverrides{
 						{
-							AvailabilityZone: aws.String("us-east-1d"),
+							AvailabilityZone: &az,
 							SpotPrice:        &maxPrice,
 							InstanceRequirements: &types.InstanceRequirements{
 								VCpuCount: &types.VCpuCountRange{
 									Min: aws.Int32(int32(cpusSpec)),
 								},
 								MemoryMiB: &types.MemoryMiB{
-									Min: aws.Int32(1024 * int32(memorySpec)),
+									Min: minMemory,
 								},
 								BareMetal:            types.BareMetalIncluded,
-								BurstablePerformance: types.BurstablePerformanceExcluded,
+								BurstablePerformance: types.BurstablePerformanceIncluded,
 							},
 						},
 					},

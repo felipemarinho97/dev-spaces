@@ -36,9 +36,9 @@ A DevSpace is a elastic development environment on AWS. Because there is no need
 
 ## How I can use it?
 
-Right now, this CLI only help managing DevSpaces and is using a _hardcoded_ EC2 Launch Template. It's not possible to bootstrap launch templates via the CLI yet.
+Please, follow the steps below: [How to bootstrap a Dev Space](BOOTSTRAP.md)
 
-If you really want to use this, contact the author for more details on how to manualy bootstrap your EC2 Launch Template.
+If you have any issue during the bootstrap progress, contact the author for more details on how to proceed.
 
 ## My progress is lost when I stop my DevSpace?
 

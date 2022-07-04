@@ -1,0 +1,82 @@
+template_name: archlinux
+# minimal amazon linux AMI
+host_ami: ami-03ededff12e34e59e
+# expressed in (GB), size must be higher than host_ami size
+host_storage_size: 2
+# can be changed to 'us-east-1a', 'us-east-1b', 'us-east-1c', 'us-east-1d'
+availability_zone: us-east-1b
+prefered_instance_type: t2.small
+# change this to your key pair name
+key_name:
+# change this to your instance profile arn. format is: arn:aws:iam::<account-id>:instance-profile/<instance-profile-name>
+instance_profile_arn:
+# Arch Linux EC2 optimized AMI (us-east-1), only used when creating the dev-space
+# you can find the amis here: http://arch-ami-list.drzee.net/
+bootstrap_ami: ami-02eb683d37377eb15
+# expressed in (GB)
+storage_size: 2
+startup_script: |
+  #!/bin/bash -xe
+  exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+
+  ## add required packages
+  yum install -y systemd-resolved systemd-networkd docker aws-cli
+  ## enable networkd and resolved 
+  systemctl start systemd-resolved 
+  systemctl start systemd-networkd 
+  systemctl start docker 
+
+  ## configure docker 
+  usermod -aG docker root
+
+  ## configure metadata 
+  mkdir -p ~/.aws
+  printf "[profile default]\noutput = json\nregion = ap-south-1\n" > ~/.aws/config
+  aws ec2 attach-volume --volume-id={{volume_id}} --device=/dev/xvdb --instance-id=$(ec2-metadata -i | cut -d" " -f2)
+  sleep 5s 
+  ## mount arch linux
+  mkdir -p /arch 
+  mount -t ext4 /dev/xvdb1 /arch 
+  ## boot the chroot machine
+  systemd-nspawn --boot --quiet --machine=arch -D /arch/
+bootstrap_script: |
+  #!/bin/bash -xe
+  exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+
+  pacman-key --init
+  pacman-key --populate
+  pacman -Sy --noconfirm arch-install-scripts
+
+  ## attach the volume
+  mkdir -p ~/.aws
+  printf "[profile default]\n output = json\n region = ap-south-1 " > ~/.aws/config
+  DEVICE=/dev/xvdb
+  IAD=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+  aws ec2 attach-volume --volume-id={{volume_id}} --device=$DEVICE --instance-id=$IAD
+
+  ## wait for the volume to attach
+  while [ ! -e $DEVICE ]; do
+    sleep 1s
+  done
+
+  ## create the partition
+  echo "n
+  p
+  1
+
+
+  w" | fdisk /dev/xvdb
+
+  ## create the filesystem
+  mkfs -t ext4 /dev/xvdb1
+  mkdir -p /arch 
+  mount -t ext4 /dev/xvdb1 /arch 
+
+  ## bootstrap the chroot machine
+  pacstrap -G /arch base base-devel zsh git sudo openssh
+
+  ## add ssd key to the chroot machine and export it to port 2222
+  mkdir -p /arch/root/.ssh
+  curl http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key > /arch/root/.ssh/authorized_keys
+  ln -s /arch/usr/lib/systemd/system/sshd.service /arch/etc/systemd/system/multi-user.target.wants/sshd.service
+  sed '/#Port 22/s/#Port 22/Port 2222/g' -i /arch/etc/ssh/sshd_config
