@@ -24,7 +24,6 @@ func Create(c *cli.Context) error {
 	}
 	tName, tVersion := util.GetTemplateNameAndVersion(name)
 	timeout := c.Duration("timeout")
-	az := c.String("availability-zone")
 	now := time.Now().UTC()
 	now = time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), 0, time.UTC)
 
@@ -64,8 +63,7 @@ func Create(c *cli.Context) error {
 					},
 					Overrides: []types.LaunchTemplateOverrides{
 						{
-							AvailabilityZone: &az,
-							SpotPrice:        &maxPrice,
+							SpotPrice: &maxPrice,
 							InstanceRequirements: &types.InstanceRequirements{
 								VCpuCount: &types.VCpuCountRange{
 									Min: aws.Int32(int32(cpusSpec)),

@@ -61,11 +61,6 @@ func main() {
 					Value:   time.Hour * 1,
 				},
 				&cli.StringFlag{
-					Name:    "availability-zone",
-					Aliases: []string{"z"},
-					Value:   os.Getenv("AWS_REGION") + "a",
-				},
-				&cli.StringFlag{
 					Name:  "region",
 					Value: os.Getenv("AWS_REGION"),
 				},
@@ -137,6 +132,23 @@ func main() {
 				&cli.StringFlag{
 					Name:  "region",
 					Value: os.Getenv("AWS_REGION"),
+				},
+			},
+		},
+		{
+			Name:        "list",
+			Description: "List all the dev spaces",
+			Action:      handlers.ListTemplates,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:  "region",
+					Value: os.Getenv("AWS_REGION"),
+				},
+				&cli.StringFlag{
+					Name:    "output",
+					Usage:   "Output format: short or wide",
+					Aliases: []string{"o"},
+					Value:   "short",
 				},
 			},
 		},

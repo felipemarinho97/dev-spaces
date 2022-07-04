@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -20,14 +19,14 @@ import (
 
 type BootstrapTemplate struct {
 	TemplateName         string             `yaml:"template_name"`
-	HostAMI              string             `yaml:"host_ami" validate:"required"`
-	BootstrapAMI         string             `yaml:"bootstrap_ami" validate:"required"`
+	HostAMI              string             `yaml:"host_ami" validate:"nonzero"`
+	BootstrapAMI         string             `yaml:"bootstrap_ami" validate:"nonzero"`
 	AvailabilityZone     string             `yaml:"availability_zone"`
 	PreferedInstanceType types.InstanceType `yaml:"prefered_instance_type"`
-	BootstrapScript      string             `yaml:"bootstrap_script" validate:"required"`
-	StartupScript        string             `yaml:"startup_script" validate:"required"`
-	InstanceProfileArn   string             `yaml:"instance_profile_arn" validate:"required"`
-	KeyName              string             `yaml:"key_name" validate:"required"`
+	BootstrapScript      string             `yaml:"bootstrap_script" validate:"nonzero"`
+	StartupScript        string             `yaml:"startup_script" validate:"nonzero"`
+	InstanceProfileArn   string             `yaml:"instance_profile_arn" validate:"nonzero"`
+	KeyName              string             `yaml:"key_name" validate:"nonzero"`
 	SecurityGroupIds     []string           `yaml:"security_group_ids"`
 	StorageSize          int32              `yaml:"storage_size"`
 	HostStorageSize      int32              `yaml:"host_storage_size"`
@@ -59,11 +58,11 @@ func Bootstrap(c *cli.Context) error {
 	}
 	err = util.LoadYAML(template, &b.template)
 	if err != nil {
-		return err
+		return fmt.Errorf("error loading template: %v", err)
 	}
 	err = validator.Validate(b.template)
 	if err != nil {
-		return err
+		return fmt.Errorf("error validating template: %v", err)
 	}
 
 	az := b.template.AvailabilityZone
@@ -205,6 +204,9 @@ func (b *BootstrapSpec) createLaunchTemplate(ctx context.Context, name string) (
 			IamInstanceProfile: &types.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Arn: &b.template.InstanceProfileArn,
 			},
+			Placement: &types.LaunchTemplatePlacementRequest{
+				AvailabilityZone: &b.template.AvailabilityZone,
+			},
 			UserData:         &dataScript,
 			SecurityGroupIds: []string{*groupId},
 			BlockDeviceMappings: []types.LaunchTemplateBlockDeviceMappingRequest{
@@ -343,17 +345,6 @@ func (b *BootstrapSpec) waitForInstance(ctx context.Context, name, requestID str
 }
 
 func (b *BootstrapSpec) templateExists(ctx context.Context, name string) (bool, error) {
-	version := 1
-	sp := strings.Split(name, "/")
-	if len(sp) > 1 {
-		name = sp[0]
-		v, err := strconv.ParseInt(sp[1], 10, 32)
-		if err != nil {
-			return false, err
-		}
-
-		version = int(v)
-	}
 
 	t, err := getLaunchTemplates(ctx, b.ec2Client)
 	if err != nil {
@@ -361,7 +352,7 @@ func (b *BootstrapSpec) templateExists(ctx context.Context, name string) (bool, 
 	}
 
 	for _, t := range t.LaunchTemplates {
-		if *t.LaunchTemplateName == name && *t.LatestVersionNumber == int64(version) {
+		if *t.LaunchTemplateName == name {
 			return true, nil
 		}
 	}
