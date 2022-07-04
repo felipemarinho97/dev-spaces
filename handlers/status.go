@@ -20,7 +20,7 @@ func Status(c *cli.Context) error {
 	name := c.String("name")
 
 	config, err := awsUtil.LoadAWSConfig()
-	config.Region = "us-east-1"
+	config.Region = c.String("region")
 	if err != nil {
 		return err
 	}

@@ -33,4 +33,9 @@ func (u *UnknownBar) Start() {
 func (u *UnknownBar) Stop() {
 	u.stop = true
 	u.Bar.Clear()
+	u.Bar.Reset()
+}
+
+func (u *UnknownBar) SetDescription(description string) {
+	u.Bar.Describe(description)
 }

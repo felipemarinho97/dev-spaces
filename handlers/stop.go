@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -18,13 +19,21 @@ func Stop(c *cli.Context) error {
 	ub.Start()
 
 	config, err := awsUtil.LoadAWSConfig()
-	config.Region = "us-east-1"
+	config.Region = c.String("region")
 	if err != nil {
 		return err
 	}
 
 	client := ec2.NewFromConfig(config)
 
+	err = cancelSpotRequest(ctx, client, name, ub)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func cancelSpotRequest(ctx context.Context, client *ec2.Client, name string, ub *util.UnknownBar) error {
 	requests, err := client.DescribeSpotFleetRequests(ctx, &ec2.DescribeSpotFleetRequestsInput{})
 	if err != nil {
 		fmt.Println(err)

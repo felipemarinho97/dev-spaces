@@ -36,16 +36,17 @@ func main() {
 			Action:      handlers.Create,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "name",
-					Aliases: []string{"n"},
-					Value:   "",
+					Name:     "name",
+					Required: true,
+					Aliases:  []string{"n"},
+					Value:    "",
 				},
 				&cli.IntFlag{
 					Name:    "min-cpus",
 					Aliases: []string{"c"},
 					Value:   1,
 				},
-				&cli.IntFlag{
+				&cli.Float64Flag{
 					Name:    "min-memory",
 					Aliases: []string{"m"},
 					Value:   1,
@@ -59,6 +60,15 @@ func main() {
 					Aliases: []string{"t"},
 					Value:   time.Hour * 1,
 				},
+				&cli.StringFlag{
+					Name:    "availability-zone",
+					Aliases: []string{"z"},
+					Value:   os.Getenv("AWS_REGION") + "a",
+				},
+				&cli.StringFlag{
+					Name:  "region",
+					Value: os.Getenv("AWS_REGION"),
+				},
 			},
 		},
 		{
@@ -70,6 +80,10 @@ func main() {
 					Aliases: []string{"n"},
 					Value:   "",
 				},
+				&cli.StringFlag{
+					Name:  "region",
+					Value: os.Getenv("AWS_REGION"),
+				},
 			},
 		},
 		{
@@ -80,6 +94,49 @@ func main() {
 					Name:    "name",
 					Aliases: []string{"n"},
 					Value:   "",
+				},
+				&cli.StringFlag{
+					Name:  "region",
+					Value: os.Getenv("AWS_REGION"),
+				},
+			},
+		},
+		{
+			Name:        "bootstrap",
+			Description: "Create a the dev space environment",
+			Action:      handlers.Bootstrap,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "name",
+					Aliases:  []string{"n"},
+					Required: false,
+					Value:    "",
+				},
+				&cli.StringFlag{
+					Name:     "template",
+					Aliases:  []string{"t"},
+					Value:    "",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:  "region",
+					Value: os.Getenv("AWS_REGION"),
+				},
+			},
+		},
+		{
+			Name:        "destroy",
+			Description: "Destroy a dev space",
+			Action:      handlers.Destroy,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "name",
+					Aliases: []string{"n"},
+					Value:   "",
+				},
+				&cli.StringFlag{
+					Name:  "region",
+					Value: os.Getenv("AWS_REGION"),
 				},
 			},
 		},
