@@ -236,7 +236,7 @@ func (b *BootstrapSpec) createLaunchTemplate(ctx context.Context, name string) (
 		TagSpecifications: []types.TagSpecification{
 			{
 				ResourceType: types.ResourceTypeLaunchTemplate,
-				Tags:         util.GenerateTags(name),
+				Tags:         append(util.GenerateTags(name), types.Tag{Key: aws.String("dev-spaces:zone"), Value: &b.template.AvailabilityZone}),
 			},
 		},
 	})
