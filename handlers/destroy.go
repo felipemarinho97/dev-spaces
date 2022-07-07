@@ -151,23 +151,25 @@ func (ds *DestroySpec) getSecurityGroups(ctx context.Context, templateName strin
 }
 
 func (ds *DestroySpec) destroyLaunchTemplate(ctx context.Context, templateName string) error {
-	launchTemplate, err := ds.getLaunchTemplate(ctx, templateName)
+	launchTemplates, err := ds.getLaunchTemplate(ctx, templateName)
 	if err != nil {
 		return err
 	}
 
-	ds.ub.SetDescription(fmt.Sprintf("Destroying launch template %s", *launchTemplate.LaunchTemplateId))
-	_, err = ds.ec2Client.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{
-		LaunchTemplateId: launchTemplate.LaunchTemplateId,
-	})
-	if err != nil {
-		return err
+	for _, launchTemplate := range launchTemplates {
+		ds.ub.SetDescription(fmt.Sprintf("Destroying launch template %s", *launchTemplate.LaunchTemplateId))
+		_, err = ds.ec2Client.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{
+			LaunchTemplateId: launchTemplate.LaunchTemplateId,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (ds *DestroySpec) getLaunchTemplate(ctx context.Context, templateName string) (*types.LaunchTemplate, error) {
+func (ds *DestroySpec) getLaunchTemplate(ctx context.Context, templateName string) ([]types.LaunchTemplate, error) {
 	launchTemplates, err := ds.ec2Client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []types.Filter{
 			{
@@ -184,9 +186,5 @@ func (ds *DestroySpec) getLaunchTemplate(ctx context.Context, templateName strin
 		return nil, err
 	}
 
-	if len(launchTemplates.LaunchTemplates) == 0 {
-		return nil, errors.New("no launch template found")
-	}
-
-	return &launchTemplates.LaunchTemplates[0], nil
+	return launchTemplates.LaunchTemplates, nil
 }

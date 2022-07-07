@@ -1,0 +1,46 @@
+## THIS IS WORKING!!
+
+template_name: amzn
+host_ami: ami-053be1efb0534e76d # minimal amazon linux AMI
+availability_zone: ap-south-1b
+key_name: Mumbai
+prefered_instance_type: t3a.nano
+instance_profile_arn: arn:aws:iam::568126575653:instance-profile/EC2Config
+storage_size: 2 # expressed in (GB)
+host_storage_size: 2 # expressed in (GB), size must be compatible with host_ami
+startup_script: |
+  #!/bin/bash -xe
+  exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+
+  ## add ssd key to the chroot machine and export it to port 2222
+  sed '/#Port 22/s/#Port 22/Port 2222/g' -i /etc/ssh/sshd_config
+  systemctl restart sshd
+
+  ## Update IP 
+  curl "https://www.duckdns.org/update?domains=arcan-mumbai&token=c9e5bf21-a875-4909-ba2a-d9f51ad3bf43"
+  ## add required packages
+  yum install -y systemd-resolved systemd-networkd aws-cli
+
+  ## enable networkd and resolved 
+  systemctl start systemd-resolved 
+  systemctl start systemd-networkd 
+
+  ## configure metadata 
+  mkdir -p ~/.aws
+  printf "[profile default]\noutput = json\nregion = ap-south-1\n" > ~/.aws/config
+
+  DEVICE=/dev/xvdb
+  aws ec2 attach-volume --volume-id={{volume_id}} --device=$DEVICE --instance-id=$(ec2-metadata -i | cut -d" " -f2)
+  ## wait for the volume to attach
+  while [ ! -e $DEVICE ]; do
+    sleep 1s
+  done
+
+  ## mount arch linux
+  mkdir -p /arch 
+  mount -t xfs -o nouuid /dev/xvdb1 /arch
+
+  ## boot the chroot machine
+  systemd-nspawn --boot --quiet --machine=arch -D /arch/
+
+devspace_ami: ami-053be1efb0534e76d # minimal amazon linux AMI -> ami-053be1efb0534e76d

@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/schollz/progressbar/v3"
@@ -38,4 +39,6 @@ func (u *UnknownBar) Stop() {
 
 func (u *UnknownBar) SetDescription(description string) {
 	u.Bar.Describe(description)
+	// print unicode done on the start of the bar
+	fmt.Println("\r\u2713")
 }

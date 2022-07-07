@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/felipemarinho97/dev-spaces/handlers"
+	v2 "github.com/felipemarinho97/dev-spaces/handlers/v2"
 	"github.com/urfave/cli/v2"
 )
 
@@ -100,6 +101,29 @@ func main() {
 			Name:        "bootstrap",
 			Description: "Create a the dev space environment",
 			Action:      handlers.Bootstrap,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "name",
+					Aliases:  []string{"n"},
+					Required: false,
+					Value:    "",
+				},
+				&cli.StringFlag{
+					Name:     "template",
+					Aliases:  []string{"t"},
+					Value:    "",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:  "region",
+					Value: os.Getenv("AWS_REGION"),
+				},
+			},
+		},
+		{
+			Name:        "bootstrap-v2",
+			Description: "Create a the dev space environment",
+			Action:      v2.BootstrapV2,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:     "name",

@@ -36,7 +36,9 @@ A DevSpace is a elastic development environment on AWS. Because there is no need
 
 ## How I can use it?
 
-Please, follow the steps below: [How to bootstrap a Dev Space](BOOTSTRAP.md)
+Please, follow the steps below: [How to bootstrap a Dev Space](BOOTSTRAP_v1.md)
+
+For the new version (still beta), please, follow the steps below: [How to bootstrap a Dev Space v2](BOOTSTRAP_v2.md)
 
 If you have any issue during the bootstrap progress, contact the author for more details on how to proceed.
 
