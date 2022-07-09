@@ -17,23 +17,27 @@ sleep 1s
 done
 
 ## mount the DevSpace
-mkdir -p /devspace
 FSTYPE=$(lsblk /dev/sdf1 -f -o FSTYPE | tail -1)
+MOUNTPOINT=/devspace
+mkdir -p $MOUNTPOINT
 if [ "$FSTYPE" == "xfs" ]; then
-	mount -t xfs -o nouuid "$DEVICE"1 /devspace
+	mount -t xfs -o nouuid "$DEVICE"1 $MOUNTPOINT
 else
-	mount "$DEVICE"1 /devspace
+	mount "$DEVICE"1 $MOUNTPOINT
 fi
 
 ## enable ip forwarding
 echo 1 > /proc/sys/net/ipv4/ip_forward
 
 ## change SSH port to 2222
-sed '/#Port 22/s/#Port 22/Port 2222/g' -i /devspace/etc/ssh/sshd_config
+sed '/#Port 22/s/#Port 22/Port 2222/g' -i $MOUNTPOINT/etc/ssh/sshd_config
+mkdir -p $MOUNTPOINT/root/.ssh/
+touch $MOUNTPOINT/root/.ssh/authorized_keys
+curl http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key > $MOUNTPOINT/root/.ssh/authorized_keys
 
 ## boot the chroot machine
 export SYSTEMD_SECCOMP=0
-systemd-nspawn --boot --quiet --machine=devspace --capability=all -D /devspace/
+systemd-nspawn --boot --quiet --machine=devspace --capability=all -D $MOUNTPOINT/
 `
 const AMI_PATH = "/aws/service/ami-amazon-linux-latest/"
 

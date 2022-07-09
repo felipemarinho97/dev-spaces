@@ -136,10 +136,9 @@ func main() {
 					Usage:    "Amazon Machine Image to use",
 				},
 				&cli.StringFlag{
-					Name:     "instance-profile-arn",
-					Aliases:  []string{"p"},
-					Required: true,
-					Usage:    "Instance profile ARN (arn:aws:iam::<account-id>:instance-profile/<instance-profile-name>) to use.",
+					Name:    "instance-profile-arn",
+					Aliases: []string{"p"},
+					Usage:   "Instance profile ARN (arn:aws:iam::<account-id>:instance-profile/<instance-profile-name>) to use.",
 				},
 				&cli.IntFlag{
 					Name:        "storage-size",
@@ -155,7 +154,7 @@ func main() {
 					Usage:   "Prefered instance type to use, this will optimize the price for this type",
 				},
 			},
-			Usage: "-n <name> -k <key-name> -i <ami> -p <instance-profile-arn> [-s <storage-size> -t <prefered-instance-type>]",
+			Usage: "-n <name> -k <key-name> -i <ami> [-p <instance-profile-arn> -s <storage-size> -t <prefered-instance-type>]",
 		},
 		{
 			Name:        "list",

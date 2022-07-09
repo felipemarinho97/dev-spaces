@@ -22,9 +22,9 @@ import (
 type BootstrapTemplate struct {
 	TemplateName         string             `validate:"nonzero,min=3,max=128"`
 	DevSpaceAMIID        string             `validate:"nonzero"`
-	InstanceProfileArn   string             `validate:"nonzero"`
 	PreferedInstanceType types.InstanceType `validate:"nonzero"`
 	KeyName              string             `validate:"nonzero"`
+	InstanceProfileArn   string
 	StartupScript        string
 	SecurityGroupIds     []string
 	StorageSize          int32
@@ -270,9 +270,9 @@ func (b *Bootstrapper) createLaunchTemplate(ctx context.Context, name, volumeID,
 		LaunchTemplateData: &types.RequestLaunchTemplateData{
 			KeyName: &b.template.KeyName,
 			ImageId: &b.template.HostAMIID,
-			IamInstanceProfile: &types.LaunchTemplateIamInstanceProfileSpecificationRequest{
-				Arn: &b.template.InstanceProfileArn,
-			},
+			// IamInstanceProfile: &types.LaunchTemplateIamInstanceProfileSpecificationRequest{
+			// 	Arn: &b.template.InstanceProfileArn,
+			// },
 			Placement: &types.LaunchTemplatePlacementRequest{
 				AvailabilityZone: &zone,
 			},
@@ -335,9 +335,9 @@ func (b *Bootstrapper) createSpotTaskRunner(ctx context.Context, name string) (*
 	launchSpecification := types.SpotFleetLaunchSpecification{
 		ImageId: &b.template.DevSpaceAMIID,
 		KeyName: &b.template.KeyName,
-		IamInstanceProfile: &types.IamInstanceProfileSpecification{
-			Arn: &b.template.InstanceProfileArn,
-		},
+		// IamInstanceProfile: &types.IamInstanceProfileSpecification{
+		// 	Arn: &b.template.InstanceProfileArn,
+		// },
 		BlockDeviceMappings: []types.BlockDeviceMapping{
 			{
 				DeviceName: b.template.DevSpaceAMI.BlockDeviceMappings[0].DeviceName,
