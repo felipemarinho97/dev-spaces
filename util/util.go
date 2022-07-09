@@ -2,6 +2,7 @@ package util
 
 import (
 	"io/ioutil"
+	"net/http"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -43,8 +44,30 @@ func GetTag(tags []types.Tag, key string) string {
 	return ""
 }
 
+func loadTemplate(filename string) ([]byte, error) {
+	// check if location is a url
+	if strings.HasPrefix(filename, "http") {
+		return downloadFrom(filename)
+	}
+
+	return ioutil.ReadFile(filename)
+}
+
+func downloadFrom(filename string) ([]byte, error) {
+	// Get the data
+	resp, err := http.Get(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	// Read the data
+	return ioutil.ReadAll(resp.Body)
+}
+
 func LoadYAML(filename string, config interface{}) (err error) {
-	file, err := ioutil.ReadFile(filename)
+	file, err := loadTemplate(filename)
 	if err != nil {
 		return
 	}

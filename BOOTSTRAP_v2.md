@@ -1,6 +1,6 @@
 # Creating a DevSpace
 
-This document describes how to bootstrap a Dev Space using the command `dev-spaces bootstrap-v2`. This new version has a better approach on creating the environment because it's more generic and it's easier to manage. Also, it's much more faster (just take few seconds to bootstap a space) than the previous version.
+This document describes how to bootstrap a Dev Space using the command `dev-spaces create`. This new version has a better approach on creating the environment because it's more generic and it's easier to manage. Also, it's much more faster (just take few seconds to bootstap a space) than the previous version.
 
 ## Instance Profile
 

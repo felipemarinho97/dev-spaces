@@ -24,6 +24,7 @@ func Destroy(c *cli.Context) error {
 	region := c.String("region")
 	ub := util.NewUnknownBar("Destroying...")
 	ub.Start()
+	defer ub.Stop()
 
 	if name == "" {
 		return errors.New("name is required")

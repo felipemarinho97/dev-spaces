@@ -346,7 +346,7 @@ func (b *BootstrapSpec) waitForInstance(ctx context.Context, name, requestID str
 
 func (b *BootstrapSpec) templateExists(ctx context.Context, name string) (bool, error) {
 
-	t, err := getLaunchTemplates(ctx, b.ec2Client)
+	t, err := GetLaunchTemplates(ctx, b.ec2Client)
 	if err != nil {
 		return false, err
 	}

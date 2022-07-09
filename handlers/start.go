@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -99,6 +100,20 @@ func Create(c *cli.Context) error {
 	ub := util.NewUnknownBar("Waiting for instance request to be fulfilled...")
 	ub.Start()
 
+	// wait for instance to be running
+	instanceID, err := waitInstance(client, ctx, id, ub)
+	if err != nil {
+		return err
+	}
+
+	// attach ebs volume
+	volumeID := util.GetTag(template.Tags, "dev-spaces:volume-id")
+	err = attachEBSVolume(client, ctx, instanceID, volumeID)
+
+	return nil
+}
+
+func waitInstance(client *ec2.Client, ctx context.Context, id *string, ub *util.UnknownBar) (string, error) {
 	for {
 		time.Sleep(time.Second * 1)
 		out2, err := client.DescribeSpotFleetInstances(ctx, &ec2.DescribeSpotFleetInstancesInput{
@@ -107,7 +122,7 @@ func Create(c *cli.Context) error {
 		if err != nil {
 			ub.Stop()
 			fmt.Println(err)
-			return err
+			return "", err
 		}
 
 		if len(out2.ActiveInstances) > 0 {
@@ -115,9 +130,42 @@ func Create(c *cli.Context) error {
 			ub.Stop()
 			fmt.Printf("instance-id=%v\n", *instance.InstanceId)
 			fmt.Printf("instance-type=%v\n", *instance.InstanceType)
-			break
+
+			for {
+				time.Sleep(time.Second * 1)
+				out3, err := client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
+					InstanceIds: []string{*instance.InstanceId},
+				})
+				if err != nil {
+					fmt.Println(err)
+					return "", err
+				}
+				if len(out3.Reservations) > 0 {
+					reservation := out3.Reservations[0]
+					if len(reservation.Instances) > 0 {
+						instance := reservation.Instances[0]
+						if instance.State.Name == types.InstanceStateNameRunning {
+							return *instance.InstanceId, nil
+						}
+					}
+				}
+			}
 		}
 
 	}
+}
+
+func attachEBSVolume(client *ec2.Client, ctx context.Context, instanceID string, volumeID string) error {
+	out, err := client.AttachVolume(ctx, &ec2.AttachVolumeInput{
+		Device:     aws.String("/dev/sdf"),
+		InstanceId: aws.String(instanceID),
+		VolumeId:   aws.String(volumeID),
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("ebs-volume-id=%v\n", *out.VolumeId)
+
 	return nil
 }
