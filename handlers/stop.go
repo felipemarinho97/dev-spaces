@@ -17,6 +17,7 @@ func Stop(c *cli.Context) error {
 	name := c.String("name")
 	ub := util.NewUnknownBar("Stopping...")
 	ub.Start()
+	defer ub.Stop()
 
 	config, err := awsUtil.LoadAWSConfig()
 	config.Region = c.String("region")
@@ -30,6 +31,7 @@ func Stop(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("OK")
 	return nil
 }
 
@@ -51,8 +53,7 @@ func cancelSpotRequest(ctx context.Context, client *ec2.Client, name string, ub 
 	}
 
 	if len(requestID) == 0 {
-		ub.Stop()
-		fmt.Println("OK")
+		ub.SetDescription("No spot requests found")
 		return nil
 	}
 
@@ -61,12 +62,10 @@ func cancelSpotRequest(ctx context.Context, client *ec2.Client, name string, ub 
 		TerminateInstances:  aws.Bool(true),
 	})
 	if err != nil {
-		ub.Stop()
 		fmt.Println(err)
 		return err
 	}
 
-	ub.Stop()
-	fmt.Println("OK")
+	ub.SetDescription(fmt.Sprintf("Cancelled %d spot requests", len(requestID)))
 	return nil
 }

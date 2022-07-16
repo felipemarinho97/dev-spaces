@@ -28,7 +28,7 @@ func ListTemplates(c *cli.Context) error {
 
 	client := ec2.NewFromConfig(config)
 
-	launchTemplates, err := getLaunchTemplates(ctx, client)
+	launchTemplates, err := GetLaunchTemplates(ctx, client)
 	if err != nil {
 		return err
 	}
@@ -39,9 +39,9 @@ func ListTemplates(c *cli.Context) error {
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	header := []string{"Space Name", "ID", "Create Time", "Version"}
+	header := []string{"Space Name", "Ver", "ID", "Create Time"}
 	if output == "wide" {
-		extra_headers := []string{"Instance ID", "Instance Type", "Instance State", "Public DNS", "Public IP", "Private DNS", "Private IP", "Key Name", "Zone"}
+		extra_headers := []string{"Instance ID", "Instance Type", "Instance State", "Public DNS", "Public IP", "Key Name", "Zone"}
 		header = append(header, extra_headers...)
 	}
 	table.SetHeader(header)
@@ -68,9 +68,9 @@ func ListTemplates(c *cli.Context) error {
 
 		row := []string{
 			name,
+			fmt.Sprint(*launchTemplate.DefaultVersionNumber),
 			*launchTemplate.LaunchTemplateId,
 			*aws.String(launchTemplate.CreateTime.Format("2006-01-02 15:04:05")),
-			fmt.Sprint(*launchTemplate.DefaultVersionNumber),
 		}
 
 		if instance != nil && output == "wide" {
@@ -80,8 +80,6 @@ func ListTemplates(c *cli.Context) error {
 				strings.ToUpper(fmt.Sprint(instance.State.Name)),
 				getOrNone(instance.PublicDnsName),
 				getOrNone(instance.PublicIpAddress),
-				getOrNone(instance.PrivateDnsName),
-				getOrNone(instance.PrivateIpAddress),
 				getOrNone(instance.KeyName),
 				getOrNone(instance.Placement.AvailabilityZone),
 			}...)
@@ -96,13 +94,13 @@ func ListTemplates(c *cli.Context) error {
 }
 
 func getOrNone(v *string) string {
-	if v == nil {
+	if v == nil || *v == "" {
 		return "-"
 	}
 	return fmt.Sprint(*v)
 }
 
-func getLaunchTemplates(ctx context.Context, client *ec2.Client) (*ec2.DescribeLaunchTemplatesOutput, error) {
+func GetLaunchTemplates(ctx context.Context, client *ec2.Client) (*ec2.DescribeLaunchTemplatesOutput, error) {
 	launchTemplates, err := client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []types.Filter{
 
@@ -120,7 +118,7 @@ func getLaunchTemplates(ctx context.Context, client *ec2.Client) (*ec2.DescribeL
 }
 
 func getLaunchTemplateByName(ctx context.Context, client *ec2.Client, name string) (*types.LaunchTemplate, error) {
-	launchTemplates, err := getLaunchTemplates(ctx, client)
+	launchTemplates, err := GetLaunchTemplates(ctx, client)
 	if err != nil {
 		return nil, err
 	}
