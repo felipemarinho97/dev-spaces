@@ -1,4 +1,4 @@
-package v2
+package create
 
 import (
 	"context"
@@ -30,8 +30,8 @@ type BootstrapTemplate struct {
 	StorageSize          int32
 	RootDeviceName       string
 	HostStorageSize      int32
-	HostArchitecture     types.ArchitectureValues
 	HostAMIID            string
+	HostArchitecture     types.ArchitectureValues
 	HostAMI              *types.Image
 	DevSpaceAMI          *types.Image
 }
@@ -49,7 +49,10 @@ func BootstrapV2(c *cli.Context) error {
 	keyName := c.String("key-name")
 	instanceProfileArn := c.String("instance-profile-arn")
 	devSpaceAMIID := c.String("ami")
+	customHostAMIID := c.String("custom-host-ami")
+	startupScript := c.String("custom-startup-script")
 	preferedInstanceType := c.String("prefered-instance-type")
+	securityGroupIds := c.StringSlice("security-group-ids")
 	storageSize := c.Int("storage-size")
 	region := c.String("region")
 	ub := util.NewUnknownBar("Bootstrapping..")
@@ -74,10 +77,12 @@ func BootstrapV2(c *cli.Context) error {
 	b.template = &BootstrapTemplate{
 		TemplateName:         name,
 		DevSpaceAMIID:        devSpaceAMIID,
+		HostAMIID:            customHostAMIID,
 		InstanceProfileArn:   instanceProfileArn,
 		KeyName:              keyName,
 		PreferedInstanceType: types.InstanceType(preferedInstanceType),
 		StorageSize:          int32(storageSize),
+		SecurityGroupIds:     securityGroupIds,
 	}
 	err = validator.Validate(b.template)
 	if err != nil {
@@ -93,9 +98,17 @@ func BootstrapV2(c *cli.Context) error {
 		return fmt.Errorf("launch template with name %s already exists", name)
 	}
 
-	if b.template.StartupScript == "" {
-		b.template.StartupScript = DEFAULT_STATUP_SCRIPT
+	if startupScript == "" {
+		b.template.StartupScript = DEFAULT_STARTUP_SCRIPT
 		ub.SetDescription("Using default startup script...")
+	} else {
+		ub.SetDescription(fmt.Sprintf("Using custom startup script: %s", startupScript))
+		script, err := util.Readfile(startupScript)
+		if err != nil {
+			return err
+		}
+
+		b.template.StartupScript = script
 	}
 
 	// get the architecture of the machine
@@ -109,11 +122,13 @@ func BootstrapV2(c *cli.Context) error {
 	b.template.HostArchitecture = devSpaceHostImage.Images[0].Architecture
 
 	// get the best AMI to use for the devspace host
-	hostAMI, err := b.findHostAMI(ctx, b.template.HostArchitecture)
-	if err != nil {
-		return err
+	if b.template.HostAMIID == "" {
+		hostAMI, err := b.findHostAMI(ctx, b.template.HostArchitecture)
+		if err != nil {
+			return err
+		}
+		b.template.HostAMIID = hostAMI
 	}
-	b.template.HostAMIID = hostAMI
 
 	// get the root device name fot this hostImage
 	hostImage, err := b.ec2Client.DescribeImages(ctx, &ec2.DescribeImagesInput{
@@ -262,46 +277,54 @@ func (b *Bootstrapper) createLaunchTemplate(ctx context.Context, name, volumeID,
 		return nil, err
 	}
 
+	b.template.SecurityGroupIds = append(b.template.SecurityGroupIds, *groupId)
+
+	// lauch template data
+	ltd := &types.RequestLaunchTemplateData{
+		KeyName: &b.template.KeyName,
+		ImageId: &b.template.HostAMIID,
+		Placement: &types.LaunchTemplatePlacementRequest{
+			AvailabilityZone: &zone,
+		},
+		UserData:         &dataScript,
+		SecurityGroupIds: b.template.SecurityGroupIds,
+		BlockDeviceMappings: []types.LaunchTemplateBlockDeviceMappingRequest{
+			{
+				DeviceName: &b.template.RootDeviceName,
+				Ebs: &types.LaunchTemplateEbsBlockDeviceRequest{
+					DeleteOnTermination: aws.Bool(true),
+					Encrypted:           aws.Bool(true),
+					VolumeSize:          &b.template.HostStorageSize,
+					VolumeType:          b.template.HostAMI.BlockDeviceMappings[0].Ebs.VolumeType,
+					Iops:                b.template.HostAMI.BlockDeviceMappings[0].Ebs.Iops,
+					Throughput:          b.template.HostAMI.BlockDeviceMappings[0].Ebs.Throughput,
+				},
+			},
+		},
+		TagSpecifications: []types.LaunchTemplateTagSpecificationRequest{
+			{
+				ResourceType: types.ResourceTypeInstance,
+				Tags:         util.GenerateTags(name),
+			},
+			{
+				ResourceType: types.ResourceTypeVolume,
+				Tags:         util.GenerateTags(name),
+			},
+		},
+	}
+
+	if b.template.InstanceProfileArn != "" {
+		ltd.IamInstanceProfile = &types.LaunchTemplateIamInstanceProfileSpecificationRequest{
+			Arn: &b.template.InstanceProfileArn,
+		}
+	}
+
 	// create launch template
 	b.ub.SetDescription("Creating launch template..")
 	o, err := b.ec2Client.CreateLaunchTemplate(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(name),
 		ClientToken:        aws.String(uuid.NewV4().String()),
-		LaunchTemplateData: &types.RequestLaunchTemplateData{
-			KeyName: &b.template.KeyName,
-			ImageId: &b.template.HostAMIID,
-			// IamInstanceProfile: &types.LaunchTemplateIamInstanceProfileSpecificationRequest{
-			// 	Arn: &b.template.InstanceProfileArn,
-			// },
-			Placement: &types.LaunchTemplatePlacementRequest{
-				AvailabilityZone: &zone,
-			},
-			UserData:         &dataScript,
-			SecurityGroupIds: []string{*groupId},
-			BlockDeviceMappings: []types.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName: &b.template.RootDeviceName,
-					Ebs: &types.LaunchTemplateEbsBlockDeviceRequest{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          &b.template.HostStorageSize,
-						VolumeType:          types.VolumeTypeGp3,
-						Encrypted:           aws.Bool(true),
-						Iops:                aws.Int32(3000),
-						Throughput:          aws.Int32(125),
-					},
-				},
-			},
-			TagSpecifications: []types.LaunchTemplateTagSpecificationRequest{
-				{
-					ResourceType: types.ResourceTypeInstance,
-					Tags:         util.GenerateTags(name),
-				},
-				{
-					ResourceType: types.ResourceTypeVolume,
-					Tags:         util.GenerateTags(name),
-				},
-			},
-		},
+		LaunchTemplateData: ltd,
 		TagSpecifications: []types.TagSpecification{
 			{
 				ResourceType: types.ResourceTypeLaunchTemplate,
@@ -335,9 +358,6 @@ func (b *Bootstrapper) createSpotTaskRunner(ctx context.Context, name string) (*
 	launchSpecification := types.SpotFleetLaunchSpecification{
 		ImageId: &b.template.DevSpaceAMIID,
 		KeyName: &b.template.KeyName,
-		// IamInstanceProfile: &types.IamInstanceProfileSpecification{
-		// 	Arn: &b.template.InstanceProfileArn,
-		// },
 		BlockDeviceMappings: []types.BlockDeviceMapping{
 			{
 				DeviceName: b.template.DevSpaceAMI.BlockDeviceMappings[0].DeviceName,
@@ -361,6 +381,12 @@ func (b *Bootstrapper) createSpotTaskRunner(ctx context.Context, name string) (*
 
 	if b.template.PreferedInstanceType != "" {
 		launchSpecification.InstanceType = types.InstanceType(b.template.PreferedInstanceType)
+	}
+
+	if b.template.InstanceProfileArn != "" {
+		launchSpecification.IamInstanceProfile = &types.IamInstanceProfileSpecification{
+			Arn: &b.template.InstanceProfileArn,
+		}
 	}
 
 	input := &ec2.RequestSpotFleetInput{

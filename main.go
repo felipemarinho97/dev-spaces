@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/felipemarinho97/dev-spaces/handlers"
-	v2 "github.com/felipemarinho97/dev-spaces/handlers/v2"
+	"github.com/felipemarinho97/dev-spaces/handlers/create"
 	"github.com/urfave/cli/v2"
 )
 
@@ -116,7 +116,7 @@ func main() {
 			Description: "Create a the dev space environment automatically.",
 
 			Category: ADM,
-			Action:   v2.BootstrapV2,
+			Action:   create.BootstrapV2,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:     "name",
@@ -152,6 +152,22 @@ func main() {
 					Aliases: []string{"t"},
 					Value:   "t2.micro",
 					Usage:   "Prefered instance type to use, this will optimize the price for this type",
+				},
+				&cli.StringFlag{
+					Name:  "custom-host-ami",
+					Value: "",
+					Usage: "Custom AMI to use for the host - use this flag in combination with --custom-startup-script",
+				},
+				&cli.PathFlag{
+					Name:      "custom-startup-script",
+					Value:     "",
+					TakesFile: true,
+					Usage:     "Custom startup script to use for the host",
+				},
+				&cli.StringSliceFlag{
+					Name:  "security-group-ids",
+					Value: &cli.StringSlice{},
+					Usage: "A list of security group IDs to use. e.g. --security-group-ids sg-123456789 sg-987654321",
 				},
 			},
 			Usage: "-n <name> -k <key-name> -i <ami> [-p <instance-profile-arn> -s <storage-size> -t <prefered-instance-type>]",

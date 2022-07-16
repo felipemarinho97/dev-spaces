@@ -4,7 +4,7 @@ This is a CLI to help creating on-demand development spaces using EC2 Spot Intan
 
 Currently, the following commands are availble:
 * [start](#starting-a-devspace)
-* [stop](#stopping-my-devspaces)
+* [stop](#terminating-devspaces)
 * [status, list](#listing-my-devspaces)
 * [create](#creating-a-devspace)
 * [destroy](#destroying-a-devspace)
@@ -57,9 +57,9 @@ This means you are running a _stateful_ workloads on spot instances.
 go install github.com/felipemarinho97/dev-spaces@latest
 ```
 
-Please, follow the steps in this document: [How to bootstrap a Dev Space](BOOTSTRAP_v2.md)
+Please, follow the steps in this document: [How to create a Dev Space](CREATING.md)
 
-For the legacy way of bootstraping (the hard way), please, follow these steps: [How to bootstrap a Dev Space](BOOTSTRAP_v1.md)
+For the legacy way of bootstraping (the hard way), please, follow these steps: [How to bootstrap a Dev Space from scratch](BOOTSTRAPPING.md)
 
 If you have any issue during the bootstrap progress, contact the author for more details on how to proceed.
 
@@ -76,6 +76,8 @@ instance-id=i-001f2561a626115f5
 instance-type=m1.large
 ```
 
+DevSpaces will be listening by default on SSH port `2222`.
+
 ### Listing my DevSpaces
 
 You can list the most recent (last 48h) created DevSpaces.
@@ -91,11 +93,11 @@ It's also possible to see all the created (regradless if they are active or not)
 
 ```bash
 $ dev-spaces list -o wide
-SPACE NAME      ID                      CREATE TIME             VERSION     [...]
+SPACE NAME      ID                      CREATE TIME             VERSION   [...]   PUBLIC IP
 
-MySpace         lt-0639c1eccbb51e345    2022-07-07 22:55:01     1      
-arch            lt-08fb20577838aa54d    2022-07-05 22:02:00     1      
-al2022-05       lt-0ca2cf57f06544590    2022-07-05 23:01:10     1      
+MySpace         lt-0639c1eccbb51e345    2022-07-07 22:55:01     1         [...]   52.23.206.106
+arch            lt-08fb20577838aa54d    2022-07-05 22:02:00     1         [...]   52.91.16.131
+al2022-05       lt-0ca2cf57f06544590    2022-07-05 23:01:10     1         [...]   -
 ```
 
 ### Terminating DevSpaces
@@ -120,7 +122,7 @@ The example below shows an example on how to create a DevSpace using the `create
 $ dev-spaces create --name MySpace --key MyKey --ami ami-1234567890
 ```
 
-You can also optionaly specify the instance profile ARN `--instance-profile-arn`, the storage size (in GBs) `--storage-size`, and the preferred instance type `--preferred-instance-type`.
+You can also optionaly specify the instance profile ARN `--instance-profile-arn`, the storage size (in GBs) `--storage-size`, and the preferred instance type `--preferred-instance-type`. See all the options [here](CREATING.md#command-parameters).
 
 The `--preferred-instance-type` option helps to create your DevSpace in an avaliability zone with the best possible price for that instance type (this is important because once created, the DevSpace will be locked in that zone).
 

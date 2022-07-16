@@ -44,7 +44,7 @@ func GetTag(tags []types.Tag, key string) string {
 	return ""
 }
 
-func loadTemplate(filename string) ([]byte, error) {
+func loadFile(filename string) ([]byte, error) {
 	// check if location is a url
 	if strings.HasPrefix(filename, "http") {
 		return downloadFrom(filename)
@@ -66,8 +66,17 @@ func downloadFrom(filename string) ([]byte, error) {
 	return ioutil.ReadAll(resp.Body)
 }
 
+func Readfile(filename string) (string, error) {
+	b, err := loadFile(filename)
+	if err != nil {
+		return "", err
+	}
+
+	return string(b), nil
+}
+
 func LoadYAML(filename string, config interface{}) (err error) {
-	file, err := loadTemplate(filename)
+	file, err := loadFile(filename)
 	if err != nil {
 		return
 	}

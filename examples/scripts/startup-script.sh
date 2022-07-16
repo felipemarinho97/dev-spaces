@@ -1,14 +1,10 @@
-package v2
-
-const DEFAULT_STATUP_SCRIPT = `#!/bin/bash -xe
+#!/bin/bash -xe
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
-## add required packages
-yum install -y systemd-container
-
-## start networkd and resolved 
-systemctl start systemd-resolved 
-systemctl start systemd-networkd 
+## Install packages
+# put your install commands here, when using custom-host-ami, 
+# make sure to have systemd-nspawn, systemd-networked and systemd-resolved installed.
+##
 
 ## wait for the volume to attach
 DEVICE=/dev/sdf
@@ -38,7 +34,3 @@ curl http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key > $MOUNTP
 ## boot the chroot machine
 export SYSTEMD_SECCOMP=0
 systemd-nspawn --boot --quiet --machine=devspace --capability=all -D $MOUNTPOINT/
-`
-const AMI_PATH = "/aws/service/ami-amazon-linux-latest/"
-
-const API_PARAMETER_PREFIX = "/aws/service/ami-amazon-linux-latest/al2022-ami-minimal-kernel-default-"
