@@ -229,41 +229,49 @@ func GetCLI() *cli.App {
 			Usage: "-n <name>",
 		},
 		{
-			Name:        "edit",
-			Description: "Edit a dev space",
+			Name:        "configure",
+			Description: "Configure a dev space. You can use this command to change instance type, storage size, dev-space region etc.",
+			Aliases:     []string{"config", "cfg"},
 			Category:    ADM,
-			Action:      editCommand,
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     "name",
-					Aliases:  []string{"n"},
-					Usage:    "The name of the dev-space",
-					Required: true,
-				},
-				&cli.StringFlag{
-					Name:     "identity-file",
-					Aliases:  []string{"i"},
-					Usage:    "The path to the identity file",
-					Required: true,
-				},
-				&cli.StringFlag{
-					Name:    "max-price",
-					Aliases: []string{"m"},
-					Usage:   "The max price to use for the instance",
-					Value:   "0.5",
-				},
-				&cli.IntFlag{
-					Name:  "min-cpus",
-					Usage: "The minimum number of cpus to use for the instance",
-					Value: 0,
-				},
-				&cli.Float64Flag{
-					Name:  "min-memory",
-					Usage: "The minimum amount of memory to use for the instance",
-					Value: 0,
+			Subcommands: []*cli.Command{
+				{
+					Name:        "spec",
+					Description: "Edit specifications of the dev space",
+					Action:      editSpecCommand,
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:     "name",
+							Aliases:  []string{"n"},
+							Usage:    "The name of the dev-space",
+							Required: true,
+						},
+						&cli.StringFlag{
+							Name:     "identity-file",
+							Aliases:  []string{"i"},
+							Usage:    "The path to the SSH identity file",
+							Required: true,
+						},
+						&cli.IntFlag{
+							Name:    "min-cpus",
+							Aliases: []string{"c"},
+							Usage:   "The minimum number of cpus to use for the instance",
+							Value:   0,
+						},
+						&cli.Float64Flag{
+							Name:    "min-memory",
+							Aliases: []string{"m"},
+							Usage:   "The minimum amount of memory to use for the instance",
+							Value:   0,
+						},
+						&cli.StringFlag{
+							Name:  "max-price",
+							Usage: "The max price to use for the instance",
+							Value: "0.5",
+						},
+					},
+					Usage: "-n <name> -i <identity-file> [-c <min-cpus> -m <min-memory> -p <max-price>]",
 				},
 			},
-			Usage: "-n <name> -i <identity-file>",
 		},
 	}
 

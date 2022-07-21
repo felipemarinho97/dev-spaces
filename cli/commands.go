@@ -78,7 +78,7 @@ func listCommand(ctx *cli.Context) error {
 	})
 }
 
-func editCommand(c *cli.Context) error {
+func editSpecCommand(c *cli.Context) error {
 	h := c.Context.Value("handler").(*handlers.Handler)
 
 	name := c.String("name")
