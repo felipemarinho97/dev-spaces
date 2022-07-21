@@ -74,6 +74,10 @@ func createSpotRequest(ctx context.Context, client clients.IEC2Client, name, ver
 	now := time.Now().UTC()
 	now = time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), 0, time.UTC)
 
+	if version == "" {
+		version = "$Default"
+	}
+
 	out, err := client.RequestSpotFleet(ctx, &ec2.RequestSpotFleetInput{
 		SpotFleetRequestConfig: &types.SpotFleetRequestConfigData{
 			TagSpecifications: []types.TagSpecification{
