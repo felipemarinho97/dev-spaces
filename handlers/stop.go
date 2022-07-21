@@ -8,26 +8,23 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/felipemarinho97/dev-spaces/util"
-	awsUtil "github.com/felipemarinho97/invest-path/util"
-	"github.com/urfave/cli/v2"
+	"github.com/felipemarinho97/invest-path/clients"
 )
 
-func Stop(c *cli.Context) error {
-	ctx := c.Context
-	name := c.String("name")
+type StopOptions struct {
+	// Name of the dev space
+	Name string
+}
+
+func (h *Handler) Stop(ctx context.Context, opts StopOptions) error {
+	name := opts.Name
 	ub := util.NewUnknownBar("Stopping...")
 	ub.Start()
 	defer ub.Stop()
 
-	config, err := awsUtil.LoadAWSConfig()
-	config.Region = c.String("region")
-	if err != nil {
-		return err
-	}
+	client := h.EC2Client
 
-	client := ec2.NewFromConfig(config)
-
-	err = cancelSpotRequest(ctx, client, name, ub)
+	err := cancelSpotRequest(ctx, client, name, ub)
 	if err != nil {
 		return err
 	}
@@ -35,7 +32,7 @@ func Stop(c *cli.Context) error {
 	return nil
 }
 
-func cancelSpotRequest(ctx context.Context, client *ec2.Client, name string, ub *util.UnknownBar) error {
+func cancelSpotRequest(ctx context.Context, client clients.IEC2Client, name string, ub *util.UnknownBar) error {
 	requests, err := client.DescribeSpotFleetRequests(ctx, &ec2.DescribeSpotFleetRequestsInput{})
 	if err != nil {
 		fmt.Println(err)

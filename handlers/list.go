@@ -10,23 +10,24 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/felipemarinho97/dev-spaces/util"
-	awsUtil "github.com/felipemarinho97/invest-path/util"
+	"github.com/felipemarinho97/invest-path/clients"
 	"github.com/olekukonko/tablewriter"
-	"github.com/urfave/cli/v2"
 )
 
-func ListTemplates(c *cli.Context) error {
-	ctx := c.Context
-	region := c.String("region")
-	output := c.String("output")
+type OutputFormat string
 
-	config, err := awsUtil.LoadAWSConfig()
-	config.Region = region
-	if err != nil {
-		return err
-	}
+const (
+	OutputFormatWide  OutputFormat = "wide"
+	OutputFormatShort OutputFormat = "short"
+)
 
-	client := ec2.NewFromConfig(config)
+type ListOptions struct {
+	Output OutputFormat
+}
+
+func (h *Handler) ListTemplates(ctx context.Context, opts ListOptions) error {
+	output := opts.Output
+	client := h.EC2Client
 
 	launchTemplates, err := GetLaunchTemplates(ctx, client)
 	if err != nil {
@@ -100,10 +101,9 @@ func getOrNone(v *string) string {
 	return fmt.Sprint(*v)
 }
 
-func GetLaunchTemplates(ctx context.Context, client *ec2.Client) (*ec2.DescribeLaunchTemplatesOutput, error) {
+func GetLaunchTemplates(ctx context.Context, client clients.IEC2Client) (*ec2.DescribeLaunchTemplatesOutput, error) {
 	launchTemplates, err := client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []types.Filter{
-
 			{
 				Name:   aws.String("tag:managed-by"),
 				Values: []string{"dev-spaces"},
@@ -117,7 +117,7 @@ func GetLaunchTemplates(ctx context.Context, client *ec2.Client) (*ec2.DescribeL
 	return launchTemplates, nil
 }
 
-func getLaunchTemplateByName(ctx context.Context, client *ec2.Client, name string) (*types.LaunchTemplate, error) {
+func getLaunchTemplateByName(ctx context.Context, client clients.IEC2Client, name string) (*types.LaunchTemplate, error) {
 	launchTemplates, err := GetLaunchTemplates(ctx, client)
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func getLaunchTemplateByName(ctx context.Context, client *ec2.Client, name strin
 	return nil, fmt.Errorf("launch template not found")
 }
 
-func getManagedInstances(ctx context.Context, client *ec2.Client) (map[string]*types.Instance, error) {
+func getManagedInstances(ctx context.Context, client clients.IEC2Client) (map[string]*types.Instance, error) {
 	instances, err := client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 		Filters: []types.Filter{
 			{

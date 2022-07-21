@@ -1,4 +1,4 @@
-package create
+package handlers
 
 import (
 	"context"
@@ -11,15 +11,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/felipemarinho97/dev-spaces/handlers"
 	"github.com/felipemarinho97/dev-spaces/util"
-	awsUtil "github.com/felipemarinho97/invest-path/util"
+	"github.com/felipemarinho97/invest-path/clients"
 	uuid "github.com/satori/go.uuid"
-	"github.com/urfave/cli/v2"
 	"gopkg.in/validator.v2"
 )
 
-type BootstrapTemplate struct {
+type createTemplate struct {
 	TemplateName         string             `validate:"nonzero,min=3,max=128"`
 	DevSpaceAMIID        string             `validate:"nonzero"`
 	PreferedInstanceType types.InstanceType `validate:"nonzero"`
@@ -36,45 +34,51 @@ type BootstrapTemplate struct {
 	DevSpaceAMI          *types.Image
 }
 
-type Bootstrapper struct {
-	ec2Client *ec2.Client
+type CreateOptions struct {
+	Name                 string       `validate:"nonzero,min=3,max=128"`
+	DevSpaceAMIID        string       `validate:"nonzero"`
+	PreferedInstanceType InstanceType `validate:"nonzero"`
+	KeyName              string       `validate:"nonzero"`
+	InstanceProfileArn   string
+	StartupScript        string
+	SecurityGroupIds     []string
+	StorageSize          int
+	HostAMIID            string
+}
+
+type InstanceType types.InstanceType
+
+type bootstrapper struct {
+	ec2Client clients.IEC2Client
 	ssmClient *ssm.Client
-	template  *BootstrapTemplate
+	template  *createTemplate
 	ub        *util.UnknownBar
 }
 
-func BootstrapV2(c *cli.Context) error {
-	ctx := c.Context
-	name := c.String("name")
-	keyName := c.String("key-name")
-	instanceProfileArn := c.String("instance-profile-arn")
-	devSpaceAMIID := c.String("ami")
-	customHostAMIID := c.String("custom-host-ami")
-	startupScript := c.String("custom-startup-script")
-	preferedInstanceType := c.String("prefered-instance-type")
-	securityGroupIds := c.StringSlice("security-group-ids")
-	storageSize := c.Int("storage-size")
-	region := c.String("region")
+func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
+	name := opts.Name
+	keyName := opts.KeyName
+	instanceProfileArn := opts.InstanceProfileArn
+	devSpaceAMIID := opts.DevSpaceAMIID
+	customHostAMIID := opts.HostAMIID
+	startupScript := opts.StartupScript
+	preferedInstanceType := opts.PreferedInstanceType
+	securityGroupIds := opts.SecurityGroupIds
+	storageSize := int32(opts.StorageSize)
 	ub := util.NewUnknownBar("Bootstrapping..")
 	ub.Start()
 	defer ub.Stop()
 
-	config, err := awsUtil.LoadAWSConfig()
-	config.Region = region
-	if err != nil {
-		return err
-	}
+	client := h.EC2Client
+	ssmClient := h.SSMClient
 
-	client := ec2.NewFromConfig(config)
-	ssmClient := ssm.NewFromConfig(config)
-
-	b := &Bootstrapper{
+	b := &bootstrapper{
 		ec2Client: client,
 		ssmClient: ssmClient,
 		ub:        ub,
 	}
 
-	b.template = &BootstrapTemplate{
+	b.template = &createTemplate{
 		TemplateName:         name,
 		DevSpaceAMIID:        devSpaceAMIID,
 		HostAMIID:            customHostAMIID,
@@ -84,7 +88,7 @@ func BootstrapV2(c *cli.Context) error {
 		StorageSize:          int32(storageSize),
 		SecurityGroupIds:     securityGroupIds,
 	}
-	err = validator.Validate(b.template)
+	err := validator.Validate(b.template)
 	if err != nil {
 		return fmt.Errorf("error validating template: %v", err)
 	}
@@ -200,7 +204,7 @@ func BootstrapV2(c *cli.Context) error {
 	return nil
 }
 
-func (b *Bootstrapper) createSecurityGroup(ctx context.Context, name string) (*string, error) {
+func (b *bootstrapper) createSecurityGroup(ctx context.Context, name string) (*string, error) {
 	b.ub.SetDescription("Creating security group..")
 
 	// get th default vpc id
@@ -268,7 +272,7 @@ func (b *Bootstrapper) createSecurityGroup(ctx context.Context, name string) (*s
 	return out.GroupId, nil
 }
 
-func (b *Bootstrapper) createLaunchTemplate(ctx context.Context, name, volumeID, zone string) (*types.LaunchTemplate, error) {
+func (b *bootstrapper) createLaunchTemplate(ctx context.Context, name, volumeID, zone string) (*types.LaunchTemplate, error) {
 	dataScript := base64.StdEncoding.EncodeToString([]byte(b.template.StartupScript))
 
 	// create security group
@@ -349,7 +353,7 @@ func (b *Bootstrapper) createLaunchTemplate(ctx context.Context, name, volumeID,
 	return o.LaunchTemplate, nil
 }
 
-func (b *Bootstrapper) createSpotTaskRunner(ctx context.Context, name string) (*ec2.RequestSpotFleetOutput, error) {
+func (b *bootstrapper) createSpotTaskRunner(ctx context.Context, name string) (*ec2.RequestSpotFleetOutput, error) {
 	minVolumeSize := *b.template.DevSpaceAMI.BlockDeviceMappings[0].Ebs.VolumeSize
 	if b.template.StorageSize < minVolumeSize {
 		b.template.StorageSize = minVolumeSize
@@ -414,7 +418,7 @@ func (b *Bootstrapper) createSpotTaskRunner(ctx context.Context, name string) (*
 	return out, nil
 }
 
-func (b *Bootstrapper) waitForInstance(ctx context.Context, name, requestID string, state types.InstanceStateName) (string, error) {
+func (b *bootstrapper) waitForInstance(ctx context.Context, name, requestID string, state types.InstanceStateName) (string, error) {
 	for {
 		time.Sleep(time.Second * 1)
 		out2, err := b.ec2Client.DescribeSpotFleetInstances(ctx, &ec2.DescribeSpotFleetInstancesInput{
@@ -451,8 +455,8 @@ func (b *Bootstrapper) waitForInstance(ctx context.Context, name, requestID stri
 	}
 }
 
-func (b *Bootstrapper) templateExists(ctx context.Context, name string) (bool, error) {
-	t, err := handlers.GetLaunchTemplates(ctx, b.ec2Client)
+func (b *bootstrapper) templateExists(ctx context.Context, name string) (bool, error) {
+	t, err := GetLaunchTemplates(ctx, b.ec2Client)
 	if err != nil {
 		return false, err
 	}
@@ -466,7 +470,7 @@ func (b *Bootstrapper) templateExists(ctx context.Context, name string) (bool, e
 	return false, nil
 }
 
-func (b *Bootstrapper) findHostAMI(ctx context.Context, architecture types.ArchitectureValues) (string, error) {
+func (b *bootstrapper) findHostAMI(ctx context.Context, architecture types.ArchitectureValues) (string, error) {
 	var nextToken *string
 
 	for {

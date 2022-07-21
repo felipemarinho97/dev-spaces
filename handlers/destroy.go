@@ -9,12 +9,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/felipemarinho97/dev-spaces/util"
+	"github.com/felipemarinho97/invest-path/clients"
 	awsUtil "github.com/felipemarinho97/invest-path/util"
 	"github.com/urfave/cli/v2"
 )
 
 type DestroySpec struct {
-	ec2Client *ec2.Client
+	ec2Client clients.IEC2Client
 	ub        *util.UnknownBar
 }
 
