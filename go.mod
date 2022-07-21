@@ -14,6 +14,7 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/schollz/progressbar/v3 v3.8.6
 	github.com/urfave/cli/v2 v2.3.0
+	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
 	gopkg.in/validator.v2 v2.0.1
 	gopkg.in/yaml.v2 v2.2.8
 )
@@ -49,7 +50,6 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
-	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838 // indirect
 	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
 	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
