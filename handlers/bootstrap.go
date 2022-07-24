@@ -90,6 +90,11 @@ func Bootstrap(c *cli.Context) error {
 		return err
 	}
 
+	// check if architecture is compatible with the host ami
+	if hostAMI.Architecture != bootstrapAMI.Architecture {
+		return fmt.Errorf("host ami architecture %s is not compatible with bootstrap ami architecture %s", hostAMI.Architecture, bootstrapAMI.Architecture)
+	}
+
 	ub.SetDescription(fmt.Sprintf("creating instance for running bootstrap task: %s", name))
 	taskRunner, err := helpers.CreateSpotTaskRunner(ctx, client, helpers.CreateSpotTaskInput{
 		Name:        &name,

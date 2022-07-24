@@ -31,7 +31,7 @@ startup_script: |
   exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
   ## add required packages
-  yum install -y systemd-resolved systemd-networkd
+  yum install -y systemd-resolved systemd-networkd systemd-container
   ## enable networkd and resolved 
   systemctl start systemd-resolved 
   systemctl start systemd-networkd 
