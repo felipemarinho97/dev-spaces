@@ -10,7 +10,6 @@ import (
 	"github.com/felipemarinho97/dev-spaces/helpers"
 	"github.com/felipemarinho97/dev-spaces/util"
 	"github.com/felipemarinho97/invest-path/clients"
-	"gopkg.in/validator.v2"
 )
 
 type DestroySpec struct {
@@ -19,11 +18,11 @@ type DestroySpec struct {
 }
 
 type DestroyOptions struct {
-	Name string `validate:"nonzero"`
+	Name string `validate:"required"`
 }
 
 func (h *Handler) Destroy(ctx context.Context, opts DestroyOptions) error {
-	err := validator.Validate(opts)
+	err := util.Validator.Struct(opts)
 	if err != nil {
 		return err
 	}

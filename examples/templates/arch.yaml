@@ -1,40 +1,43 @@
+## default template name
 template_name: archlinux
-# minimal amazon linux AMI
-host_ami: ami-03ededff12e34e59e
-# expressed in (GB), size must be higher than host_ami size
-host_storage_size: 2
-# can be changed to 'us-east-1a', 'us-east-1b', 'us-east-1c', 'us-east-1d'
-availability_zone: us-east-1b
-prefered_instance_type: t2.small
-# change this to your key pair name
+## minimal amazon linux AMI
+host_ami:
+  # id: <ami-id> # you can use this if you have a specific ami-id you want to use
+  owner: amazon
+  arch: x86_64
+  name: al2022-ami-minimal-*
+## if you want to bootstrap on a specific availability zone, you can specify it here
+# availability_zone:
+prefered_instance_specs:
+  # instance_type: t2.micro # use this or min_memory and min_cpu
+  min_memory: 1024
+  min_cpu: 1
+## change this to your key pair name
 key_name:
-# change this to your instance profile arn. format is: arn:aws:iam::<account-id>:instance-profile/<instance-profile-name>
-instance_profile_arn:
-# Arch Linux EC2 optimized AMI (us-east-1), only used when creating the dev-space
-# you can find the amis here: http://arch-ami-list.drzee.net/
-bootstrap_ami: ami-02eb683d37377eb15
-# expressed in (GB)
+## change this to your instance profile arn. format is: arn:aws:iam::<account-id>:instance-profile/<instance-profile-name>
+# instance_profile_arn:
+## Arch Linux EC2 optimized AMI (us-east-1), only used when creating the dev-space
+## you can find the amis here: http://arch-ami-list.drzee.net/
+bootstrap_ami:
+  # id: ami-0f05979841bc99639
+  ## you can also use filters to find the ami:
+  owner: 647457786197 # http://arch-ami-list.drzee.net/
+  name: arch-linux-ec2*
+  arch: x86_64
+## expressed in (GB)
 storage_size: 2
 startup_script: |
   #!/bin/bash -xe
   exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
   ## add required packages
-  yum install -y systemd-resolved systemd-networkd docker aws-cli
+  yum install -y systemd-resolved systemd-networkd
   ## enable networkd and resolved 
   systemctl start systemd-resolved 
   systemctl start systemd-networkd 
-  systemctl start docker 
-
-  ## configure docker 
-  usermod -aG docker root
-
-  ## configure metadata 
-  mkdir -p ~/.aws
-  printf "[profile default]\noutput = json\nregion = us-east-1\n" > ~/.aws/config
   
   ## wait for the volume to attach
-  DEVICE=/dev/xvdf
+  DEVICE=/dev/sdf
   while [ ! -e $DEVICE ]; do
     sleep 1s
   done
@@ -55,11 +58,7 @@ bootstrap_script: |
   pacman -Sy --noconfirm arch-install-scripts
 
   ## attach the volume
-  mkdir -p ~/.aws
-  printf "[profile default]\n output = json\n region = us-east-1 " > ~/.aws/config
-  DEVICE=/dev/xvdb
-  IAD=$(curl http://169.254.169.254/latest/meta-data/instance-id)
-  aws ec2 attach-volume --volume-id={{volume_id}} --device=$DEVICE --instance-id=$IAD
+  DEVICE=/dev/xvdf
 
   ## wait for the volume to attach
   while [ ! -e $DEVICE ]; do
@@ -72,12 +71,12 @@ bootstrap_script: |
   1
 
 
-  w" | fdisk /dev/xvdb
+  w" | fdisk $DEVICE
 
   ## create the filesystem
-  mkfs -t ext4 /dev/xvdb1
+  mkfs -t ext4 $DEVICE"1"
   mkdir -p /arch 
-  mount -t ext4 /dev/xvdb1 /arch 
+  mount -t ext4 "$DEVICE"1 /arch
 
   ## bootstrap the chroot machine
   pacstrap -G /arch base base-devel zsh git sudo openssh

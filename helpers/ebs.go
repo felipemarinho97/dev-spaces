@@ -93,3 +93,21 @@ func IsEBSAttached(ctx context.Context, client clients.IEC2Client, volumeID stri
 	}
 	return true, nil
 }
+
+func WaitForEBSVolume(ctx context.Context, client clients.IEC2Client, volumeID string, state types.VolumeState) error {
+	for {
+		vol, err := client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+			VolumeIds: []string{volumeID},
+		})
+		if err != nil {
+			return err
+		}
+		if len(vol.Volumes) == 0 {
+			return fmt.Errorf("no volume found with ID %s", volumeID)
+		}
+		if vol.Volumes[0].State == state {
+			return nil
+		}
+		time.Sleep(1 * time.Second)
+	}
+}

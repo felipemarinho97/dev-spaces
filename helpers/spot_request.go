@@ -14,7 +14,6 @@ import (
 	"github.com/felipemarinho97/invest-path/clients"
 	"github.com/samber/lo"
 	uuid "github.com/satori/go.uuid"
-	"gopkg.in/validator.v2"
 )
 
 func CreateSpotRequest(ctx context.Context, client clients.IEC2Client, name, version string, cpusSpec, minMemory int, maxPrice string, template *types.LaunchTemplate, timeout time.Duration) (*ec2.RequestSpotFleetOutput, error) {
@@ -74,20 +73,26 @@ func CreateSpotRequest(ctx context.Context, client clients.IEC2Client, name, ver
 	return out, err
 }
 
+type PreferedLaunchSpecs struct {
+	InstanceType string
+	MinMemory    int32
+	MinCPU       int32
+}
+
 type CreateSpotTaskInput struct {
-	Name               *string `validate:"nonzero"`
-	DeviceName         *string `validate:"nonzero"`
-	StorageSize        *int32  `validate:"nonzero"`
-	AMIID              *string `validate:"nonzero"`
-	KeyName            *string `validate:"nonzero"`
-	InstanceType       *string
-	InstanceProfileArn *string
-	StartupScript      *string
-	Zone               *string
+	Name                *string `validate:"required"`
+	DeviceName          *string `validate:"required"`
+	StorageSize         *int32  `validate:"required"`
+	AMIID               *string `validate:"required"`
+	KeyName             *string `validate:"required"`
+	PreferedLaunchSpecs *PreferedLaunchSpecs
+	InstanceProfileArn  *string
+	StartupScript       *string
+	Zone                *string
 }
 
 func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in CreateSpotTaskInput) (*ec2.RequestSpotFleetOutput, error) {
-	err := validator.Validate(in)
+	err := util.Validator.Struct(in)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +121,20 @@ func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in Cre
 		},
 	}
 
-	if in.InstanceType != nil && *in.InstanceType != "" {
-		launchSpecification.InstanceType = types.InstanceType(*in.InstanceType)
+	if in.PreferedLaunchSpecs != nil {
+		if in.PreferedLaunchSpecs.InstanceType != "" {
+			launchSpecification.InstanceType = types.InstanceType(in.PreferedLaunchSpecs.InstanceType)
+		} else {
+			launchSpecification.InstanceRequirements = &types.InstanceRequirements{
+				VCpuCount: &types.VCpuCountRange{
+					Min: aws.Int32(in.PreferedLaunchSpecs.MinCPU),
+				},
+				MemoryMiB: &types.MemoryMiB{
+					Min: aws.Int32(in.PreferedLaunchSpecs.MinMemory),
+				},
+			}
+		}
+
 	}
 
 	if in.InstanceProfileArn != nil && *in.InstanceProfileArn != "" {

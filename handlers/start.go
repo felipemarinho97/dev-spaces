@@ -10,24 +10,23 @@ import (
 	"github.com/felipemarinho97/dev-spaces/helpers"
 	"github.com/felipemarinho97/dev-spaces/util"
 	"github.com/felipemarinho97/invest-path/clients"
-	"gopkg.in/validator.v2"
 )
 
 type StartOptions struct {
 	// Name of the Dev Space
-	Name string `validate:"nonzero"`
+	Name string `validate:"required"`
 	// MinMemory is the amount of memory in MiB
 	MinMemory int `validate:"min=0"`
 	// MinCPUs is the amount of cpus
 	MinCPUs int `validate:"min=0"`
 	// MaxPrice is the maximum price for the instance
-	MaxPrice string `validate:"nonzero"`
+	MaxPrice string `validate:"required"`
 	// Timeout is the time in minutes to wait for the instance to be running
 	Timeout time.Duration `validate:"min=0"`
 }
 
 func (h Handler) Start(ctx context.Context, startOptions StartOptions) error {
-	err := validator.Validate(startOptions)
+	err := util.Validator.Struct(startOptions)
 	if err != nil {
 		return err
 	}

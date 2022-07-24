@@ -9,59 +9,45 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/felipemarinho97/dev-spaces/helpers"
 	"github.com/felipemarinho97/dev-spaces/util"
-	"github.com/felipemarinho97/invest-path/clients"
-	"gopkg.in/validator.v2"
 )
 
-type createTemplate struct {
-	TemplateName         string             `validate:"nonzero,min=3,max=128"`
-	DevSpaceAMIID        string             `validate:"nonzero"`
-	PreferedInstanceType types.InstanceType `validate:"nonzero"`
-	KeyName              string             `validate:"nonzero"`
-	InstanceProfileArn   string
-	StartupScript        string
-	SecurityGroupIds     []string
-	StorageSize          int32
-	RootDeviceName       string
-	HostStorageSize      int32
-	HostAMIID            string
-	HostArchitecture     types.ArchitectureValues
-	HostAMI              *types.Image
-	DevSpaceAMI          *types.Image
+type PreferedLaunchSpecs struct {
+	InstanceType InstanceType `validate:"required_without=MinMemory,required_without=MinCPU" yaml:"instance_type"`
+	MinMemory    int32        `validate:"required_without=InstanceType" yaml:"min_memory"`
+	MinCPU       int32        `validate:"required_without=InstanceType" yaml:"min_cpu"`
+}
+
+type AMIFilter struct {
+	ID    string `validate:"required_without=Name" yaml:"id"`
+	Name  string `validate:"required_without=ID" yaml:"name"`
+	Arch  string `yaml:"arch"`
+	Owner string `yaml:"owner"`
 }
 
 type CreateOptions struct {
-	Name                 string       `validate:"nonzero,min=3,max=128"`
-	DevSpaceAMIID        string       `validate:"nonzero"`
-	PreferedInstanceType InstanceType `validate:"nonzero"`
-	KeyName              string       `validate:"nonzero"`
-	InstanceProfileArn   string
-	StartupScriptPath    string
-	SecurityGroupIds     []string
-	StorageSize          int
-	HostAMIID            string
+	Name                string              `validate:"required,min=3,max=128"`
+	DevSpaceAMI         AMIFilter           `validate:"required"`
+	PreferedLaunchSpecs PreferedLaunchSpecs `validate:"required"`
+	KeyName             string              `validate:"required"`
+	InstanceProfileArn  string
+	StartupScriptPath   string
+	SecurityGroupIds    []string
+	StorageSize         int
+	HostAMI             *AMIFilter
 }
 
 type InstanceType types.InstanceType
 
-type bootstrapper struct {
-	ec2Client clients.IEC2Client
-	// template  *createTemplate
-	ub *util.UnknownBar
-}
-
 func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
-	err := validator.Validate(opts)
+	err := util.Validator.Struct(opts)
 	if err != nil {
 		return err
 	}
 	name := opts.Name
 	keyName := opts.KeyName
 	instanceProfileArn := opts.InstanceProfileArn
-	devSpaceAMIID := opts.DevSpaceAMIID
-	hostAMIID := opts.HostAMIID
 	startupScript := DEFAULT_STARTUP_SCRIPT
-	preferedInstanceType := opts.PreferedInstanceType
+	preferedInstanceType := opts.PreferedLaunchSpecs.InstanceType
 	securityGroupIds := opts.SecurityGroupIds
 	storageSize := int32(opts.StorageSize)
 	ub := util.NewUnknownBar("Bootstrapping..")
@@ -94,7 +80,12 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 	}
 
 	// get the image of the dev space machine
-	devSpaceAMI, err := helpers.GetImage(ctx, client, devSpaceAMIID)
+	devSpaceAMI, err := helpers.GetImageFromFilter(ctx, client, helpers.AMIFilter{
+		ID:    opts.DevSpaceAMI.ID,
+		Name:  opts.DevSpaceAMI.Name,
+		Arch:  opts.DevSpaceAMI.Arch,
+		Owner: opts.DevSpaceAMI.Owner,
+	})
 	if err != nil {
 		return fmt.Errorf("error describing host ami: %v", err)
 	}
@@ -104,11 +95,15 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 	}
 
 	taskRunner, err := helpers.CreateSpotTaskRunner(ctx, client, helpers.CreateSpotTaskInput{
-		Name:               &name,
-		AMIID:              &devSpaceAMIID,
-		DeviceName:         devSpaceAMI.RootDeviceName,
-		StorageSize:        &storageSize,
-		InstanceType:       aws.String(string(preferedInstanceType)),
+		Name:        &name,
+		AMIID:       devSpaceAMI.ImageId,
+		DeviceName:  devSpaceAMI.RootDeviceName,
+		StorageSize: &storageSize,
+		PreferedLaunchSpecs: &helpers.PreferedLaunchSpecs{
+			InstanceType: string(preferedInstanceType),
+			MinMemory:    opts.PreferedLaunchSpecs.MinMemory,
+			MinCPU:       opts.PreferedLaunchSpecs.MinCPU,
+		},
 		KeyName:            &keyName,
 		InstanceProfileArn: &instanceProfileArn,
 	})
@@ -157,19 +152,25 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 	}
 
 	// get the best AMI to use for the devspace host
-	if opts.HostAMIID == "" {
-		hostAMI, err := helpers.FindHostAMI(ctx, client, devSpaceAMI.Architecture)
+	var hostAMI *types.Image
+	if opts.HostAMI == nil {
+		hostAMI, err = helpers.FindHostAMI(ctx, client, devSpaceAMI.Architecture)
 		if err != nil {
 			return err
 		}
-		hostAMIID = hostAMI
+	} else {
+		hostAMI, err = helpers.GetImageFromFilter(ctx, client, helpers.AMIFilter{
+			ID:    opts.HostAMI.ID,
+			Name:  opts.HostAMI.Name,
+			Arch:  opts.HostAMI.Arch,
+			Owner: opts.HostAMI.Owner,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	// get the root device name fot this hostImage
-	hostAMI, err := helpers.GetImage(ctx, client, hostAMIID)
-	if err != nil {
-		return fmt.Errorf("error retrieving host ami: %v", err)
-	}
 	hostDeviceName := *hostAMI.RootDeviceName
 	hostStorageSize := *hostAMI.BlockDeviceMappings[0].Ebs.VolumeSize
 
@@ -183,7 +184,7 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 		InstanceProfileArn: &instanceProfileArn,
 		KeyName:            keyName,
 		Host: helpers.CreateLaunchTemplateHost{
-			AMIID: hostAMIID,
+			AMIID: *hostAMI.ImageId,
 			Device: helpers.CreateLaunchTemplateHostDevice{
 				Name:       hostDeviceName,
 				Size:       hostStorageSize,
