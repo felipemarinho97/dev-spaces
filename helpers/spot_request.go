@@ -132,6 +132,8 @@ func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in Cre
 				MemoryMiB: &types.MemoryMiB{
 					Min: aws.Int32(in.PreferedLaunchSpecs.MinMemory),
 				},
+				BareMetal:            types.BareMetalIncluded,
+				BurstablePerformance: types.BurstablePerformanceIncluded,
 			}
 		}
 
