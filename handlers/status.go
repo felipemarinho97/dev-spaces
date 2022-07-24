@@ -1,50 +1,42 @@
 package handlers
 
 import (
-	"fmt"
+	"context"
 	"os"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/felipemarinho97/dev-spaces/helpers"
 	"github.com/felipemarinho97/dev-spaces/util"
-	awsUtil "github.com/felipemarinho97/invest-path/util"
 	"github.com/olekukonko/tablewriter"
-	"github.com/urfave/cli/v2"
 )
 
-func Status(c *cli.Context) error {
-	ctx := c.Context
-	name := c.String("name")
+type StatusOptions struct {
+	// Name of the dev space
+	Name string
+}
 
-	config, err := awsUtil.LoadAWSConfig()
-	config.Region = c.String("region")
+func (h *Handler) Status(ctx context.Context, opts StartOptions) error {
+	name := opts.Name
+	client := h.EC2Client
+
+	requests, err := helpers.GetSpotRequestStatus(ctx, client, name)
 	if err != nil {
-		return err
-	}
-
-	client := ec2.NewFromConfig(config)
-
-	requests, err := client.DescribeSpotFleetRequests(ctx, &ec2.DescribeSpotFleetRequestsInput{})
-	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 
 	data := [][]string{}
 
-	for _, request := range requests.SpotFleetRequestConfigs {
-		if util.IsManaged(request.Tags) && util.IsDevSpace(request.Tags, name) {
-			data = append(data, []string{
-				util.GetTag(request.Tags, "dev-spaces:name"),
-				string(request.SpotFleetRequestState),
-				*request.SpotFleetRequestId,
-				string(request.CreateTime.Local().Format(time.RFC3339)),
-				string(request.ActivityStatus),
-			})
-		}
+	for _, request := range requests {
+		data = append(data, []string{
+			util.GetTag(request.Tags, "dev-spaces:name"),
+			string(request.SpotFleetRequestState),
+			*request.SpotFleetRequestId,
+			string(request.CreateTime.Local().Format(time.RFC3339)),
+			string(request.ActivityStatus),
+		})
 	}
 	sort.Slice(data, func(i, j int) bool {
 		di := data[i][3]

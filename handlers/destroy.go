@@ -2,52 +2,46 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/felipemarinho97/dev-spaces/helpers"
 	"github.com/felipemarinho97/dev-spaces/util"
-	awsUtil "github.com/felipemarinho97/invest-path/util"
-	"github.com/urfave/cli/v2"
+	"github.com/felipemarinho97/invest-path/clients"
 )
 
 type DestroySpec struct {
-	ec2Client *ec2.Client
+	ec2Client clients.IEC2Client
 	ub        *util.UnknownBar
 }
 
-func Destroy(c *cli.Context) error {
-	ctx := c.Context
-	name := c.String("name")
-	region := c.String("region")
-	ub := util.NewUnknownBar("Destroying...")
-	ub.Start()
-	defer ub.Stop()
+type DestroyOptions struct {
+	Name string `validate:"required"`
+}
 
-	if name == "" {
-		return errors.New("name is required")
-	}
-
-	if region == "" {
-		return errors.New("region is required")
-	}
-
-	config, err := awsUtil.LoadAWSConfig()
-	config.Region = region
+func (h *Handler) Destroy(ctx context.Context, opts DestroyOptions) error {
+	err := util.Validator.Struct(opts)
 	if err != nil {
 		return err
 	}
 
-	client := ec2.NewFromConfig(config)
+	name := opts.Name
+	client := h.EC2Client
+	log := h.Logger
+
+	ub := util.NewUnknownBar("Destroying...")
+	ub.Start()
+	defer ub.Stop()
+
 	ds := &DestroySpec{
 		ec2Client: client,
 		ub:        ub,
 	}
 
 	// Destroy spot requests
-	err = cancelSpotRequest(ctx, client, name, ub)
+	err = helpers.CancelSpotRequest(ctx, client, log, name)
 	if err != nil {
 		return err
 	}

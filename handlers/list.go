@@ -6,34 +6,32 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/felipemarinho97/dev-spaces/util"
-	awsUtil "github.com/felipemarinho97/invest-path/util"
+	"github.com/felipemarinho97/dev-spaces/helpers"
 	"github.com/olekukonko/tablewriter"
-	"github.com/urfave/cli/v2"
 )
 
-func ListTemplates(c *cli.Context) error {
-	ctx := c.Context
-	region := c.String("region")
-	output := c.String("output")
+type OutputFormat string
 
-	config, err := awsUtil.LoadAWSConfig()
-	config.Region = region
+const (
+	OutputFormatWide  OutputFormat = "wide"
+	OutputFormatShort OutputFormat = "short"
+)
+
+type ListOptions struct {
+	Output OutputFormat
+}
+
+func (h *Handler) ListTemplates(ctx context.Context, opts ListOptions) error {
+	output := opts.Output
+	client := h.EC2Client
+
+	launchTemplates, err := helpers.GetLaunchTemplates(ctx, client)
 	if err != nil {
 		return err
 	}
 
-	client := ec2.NewFromConfig(config)
-
-	launchTemplates, err := GetLaunchTemplates(ctx, client)
-	if err != nil {
-		return err
-	}
-
-	managedInstances, err := getManagedInstances(ctx, client)
+	managedInstances, err := helpers.GetManagedInstances(ctx, client)
 	if err != nil {
 		return err
 	}
@@ -98,67 +96,4 @@ func getOrNone(v *string) string {
 		return "-"
 	}
 	return fmt.Sprint(*v)
-}
-
-func GetLaunchTemplates(ctx context.Context, client *ec2.Client) (*ec2.DescribeLaunchTemplatesOutput, error) {
-	launchTemplates, err := client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
-		Filters: []types.Filter{
-
-			{
-				Name:   aws.String("tag:managed-by"),
-				Values: []string{"dev-spaces"},
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return launchTemplates, nil
-}
-
-func getLaunchTemplateByName(ctx context.Context, client *ec2.Client, name string) (*types.LaunchTemplate, error) {
-	launchTemplates, err := GetLaunchTemplates(ctx, client)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, launchTemplate := range launchTemplates.LaunchTemplates {
-		if *launchTemplate.LaunchTemplateName == name {
-			return &launchTemplate, nil
-		}
-	}
-
-	return nil, fmt.Errorf("launch template not found")
-}
-
-func getManagedInstances(ctx context.Context, client *ec2.Client) (map[string]*types.Instance, error) {
-	instances, err := client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
-		Filters: []types.Filter{
-			{
-				Name:   aws.String("tag:managed-by"),
-				Values: []string{"dev-spaces"},
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// map instance by space name
-	var managedInstances = make(map[string]*types.Instance)
-	for _, instance := range instances.Reservations {
-		for _, i := range instance.Instances {
-			name := util.GetTag(i.Tags, "dev-spaces:name")
-
-			if inst := managedInstances[name]; inst != nil {
-				if inst.LaunchTime.After(*i.LaunchTime) {
-					continue
-				}
-			}
-			managedInstances[name] = &i
-		}
-	}
-
-	return managedInstances, nil
 }
