@@ -21,14 +21,16 @@ func IsManaged(tags []types.Tag) bool {
 }
 
 func IsDevSpace(tags []types.Tag, devSpaceName string) bool {
-	if devSpaceName == "" {
-		return true
-	}
 
 	for _, tag := range tags {
 		if *tag.Key == "dev-spaces:name" && *tag.Value == devSpaceName {
 			return true
 		}
+	}
+
+	// empty dev space name matches any dev space
+	if IsManaged(tags) && devSpaceName == "" {
+		return true
 	}
 
 	return false
@@ -75,6 +77,14 @@ func Readfile(filename string) (string, error) {
 	return string(b), nil
 }
 
+func GetValue(ptr *string) string {
+	if ptr == nil {
+		return ""
+	}
+
+	return *ptr
+}
+
 func LoadYAML(filename string, config interface{}) (err error) {
 	file, err := loadFile(filename)
 	if err != nil {
@@ -110,6 +120,10 @@ func GenerateTags(templateName string) []types.Tag {
 		},
 		{
 			Key:   aws.String("dev-spaces:name"),
+			Value: aws.String(templateName),
+		},
+		{
+			Key:   aws.String("Name"),
 			Value: aws.String(templateName),
 		},
 	}

@@ -2,18 +2,14 @@ package handlers
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/felipemarinho97/dev-spaces/helpers"
 	"github.com/felipemarinho97/dev-spaces/util"
 	"github.com/felipemarinho97/invest-path/clients"
-	uuid "github.com/satori/go.uuid"
 	"gopkg.in/validator.v2"
 )
 
@@ -40,7 +36,7 @@ type CreateOptions struct {
 	PreferedInstanceType InstanceType `validate:"nonzero"`
 	KeyName              string       `validate:"nonzero"`
 	InstanceProfileArn   string
-	StartupScript        string
+	StartupScriptPath    string
 	SecurityGroupIds     []string
 	StorageSize          int
 	HostAMIID            string
@@ -50,18 +46,21 @@ type InstanceType types.InstanceType
 
 type bootstrapper struct {
 	ec2Client clients.IEC2Client
-	ssmClient *ssm.Client
-	template  *createTemplate
-	ub        *util.UnknownBar
+	// template  *createTemplate
+	ub *util.UnknownBar
 }
 
 func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
+	err := validator.Validate(opts)
+	if err != nil {
+		return err
+	}
 	name := opts.Name
 	keyName := opts.KeyName
 	instanceProfileArn := opts.InstanceProfileArn
 	devSpaceAMIID := opts.DevSpaceAMIID
-	customHostAMIID := opts.HostAMIID
-	startupScript := opts.StartupScript
+	hostAMIID := opts.HostAMIID
+	startupScript := DEFAULT_STARTUP_SCRIPT
 	preferedInstanceType := opts.PreferedInstanceType
 	securityGroupIds := opts.SecurityGroupIds
 	storageSize := int32(opts.StorageSize)
@@ -70,31 +69,10 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 	defer ub.Stop()
 
 	client := h.EC2Client
-	ssmClient := h.SSMClient
-
-	b := &bootstrapper{
-		ec2Client: client,
-		ssmClient: ssmClient,
-		ub:        ub,
-	}
-
-	b.template = &createTemplate{
-		TemplateName:         name,
-		DevSpaceAMIID:        devSpaceAMIID,
-		HostAMIID:            customHostAMIID,
-		InstanceProfileArn:   instanceProfileArn,
-		KeyName:              keyName,
-		PreferedInstanceType: types.InstanceType(preferedInstanceType),
-		StorageSize:          int32(storageSize),
-		SecurityGroupIds:     securityGroupIds,
-	}
-	err := validator.Validate(b.template)
-	if err != nil {
-		return fmt.Errorf("error validating template: %v", err)
-	}
+	log := h.Logger
 
 	// check if a launch template with the same name already exists
-	templateExists, err := b.templateExists(ctx, name)
+	templateExists, err := helpers.TemplateExists(ctx, client, name)
 	if err != nil {
 		return err
 	}
@@ -102,74 +80,59 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 		return fmt.Errorf("launch template with name %s already exists", name)
 	}
 
-	if startupScript == "" {
-		b.template.StartupScript = DEFAULT_STARTUP_SCRIPT
-		ub.SetDescription("Using default startup script...")
+	if opts.StartupScriptPath == "" {
+		startupScript = DEFAULT_STARTUP_SCRIPT
+		log.Info("Using default startup script...")
 	} else {
-		ub.SetDescription(fmt.Sprintf("Using custom startup script: %s", startupScript))
-		script, err := util.Readfile(startupScript)
+		log.Info(fmt.Sprintf("Using custom startup script: %s", opts.StartupScriptPath))
+		script, err := util.Readfile(opts.StartupScriptPath)
 		if err != nil {
 			return err
 		}
 
-		b.template.StartupScript = script
+		startupScript = script
 	}
 
-	// get the architecture of the machine
-	devSpaceHostImage, err := b.ec2Client.DescribeImages(ctx, &ec2.DescribeImagesInput{
-		ImageIds: []string{b.template.DevSpaceAMIID},
-	})
-	if err != nil {
-		return fmt.Errorf("error describing host ami: %v", err)
-	}
-	b.template.DevSpaceAMI = &devSpaceHostImage.Images[0]
-	b.template.HostArchitecture = devSpaceHostImage.Images[0].Architecture
-
-	// get the best AMI to use for the devspace host
-	if b.template.HostAMIID == "" {
-		hostAMI, err := b.findHostAMI(ctx, b.template.HostArchitecture)
-		if err != nil {
-			return err
-		}
-		b.template.HostAMIID = hostAMI
-	}
-
-	// get the root device name fot this hostImage
-	hostImage, err := b.ec2Client.DescribeImages(ctx, &ec2.DescribeImagesInput{
-		ImageIds: []string{b.template.HostAMIID},
-	})
+	// get the image of the dev space machine
+	devSpaceAMI, err := helpers.GetImage(ctx, client, devSpaceAMIID)
 	if err != nil {
 		return fmt.Errorf("error describing host ami: %v", err)
 	}
 
-	b.template.HostAMI = &hostImage.Images[0]
-	b.template.RootDeviceName = *hostImage.Images[0].RootDeviceName
-	b.template.HostStorageSize = *hostImage.Images[0].BlockDeviceMappings[0].Ebs.VolumeSize
+	if storageSize < *devSpaceAMI.BlockDeviceMappings[0].Ebs.VolumeSize {
+		storageSize = *devSpaceAMI.BlockDeviceMappings[0].Ebs.VolumeSize
+	}
 
-	taskRunner, err := b.createSpotTaskRunner(ctx, name)
+	taskRunner, err := helpers.CreateSpotTaskRunner(ctx, client, helpers.CreateSpotTaskInput{
+		Name:               &name,
+		AMIID:              &devSpaceAMIID,
+		DeviceName:         devSpaceAMI.RootDeviceName,
+		StorageSize:        &storageSize,
+		InstanceType:       aws.String(string(preferedInstanceType)),
+		KeyName:            &keyName,
+		InstanceProfileArn: &instanceProfileArn,
+	})
 	if err != nil {
 		return err
 	}
-	ub.SetDescription(fmt.Sprintf("Spot task created: %s - Waiting instance to be assigned..", *taskRunner.SpotFleetRequestId))
-	id, err := b.waitForInstance(ctx, name, *taskRunner.SpotFleetRequestId, types.InstanceStateNameRunning)
-	ub.SetDescription(fmt.Sprintf("Instance assigned: %s", id))
+	log.Info(fmt.Sprintf("Spot task created: %s - Waiting instance to be assigned..", *taskRunner.SpotFleetRequestId))
+	id, err := helpers.WaitForSpotFleetInstance(ctx, client, *taskRunner.SpotFleetRequestId, types.InstanceStateNameRunning)
+	log.Info(fmt.Sprintf("Instance assigned: %s", id))
 	if err != nil {
 		return err
 	}
 
 	// get the volume id associated with the instance
-	out, err := b.ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
-		InstanceIds: []string{id},
-	})
+	instanceData, err := helpers.GetInstanceData(ctx, client, id)
 	if err != nil {
 		return err
 	}
-	volumeId := out.Reservations[0].Instances[0].BlockDeviceMappings[0].Ebs.VolumeId
-	volumeZone := out.Reservations[0].Instances[0].Placement.AvailabilityZone
+	volumeId := instanceData.BlockDeviceMappings[0].Ebs.VolumeId
+	volumeZone := instanceData.Placement.AvailabilityZone
 
 	// tag the volume
-	ub.SetDescription(fmt.Sprintf("Tagging volume: %s", *volumeId))
-	_, err = b.ec2Client.CreateTags(ctx, &ec2.CreateTagsInput{
+	log.Info(fmt.Sprintf("Tagging volume: %s", *volumeId))
+	_, err = client.CreateTags(ctx, &ec2.CreateTagsInput{
 		Resources: []string{*volumeId},
 		Tags:      util.GenerateTags(name),
 	})
@@ -178,8 +141,8 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 	}
 
 	// cancel the spot task
-	ub.SetDescription(fmt.Sprintf("Stopping instance: %s", id))
-	_, err = b.ec2Client.CancelSpotFleetRequests(ctx, &ec2.CancelSpotFleetRequestsInput{
+	log.Info(fmt.Sprintf("Stopping instance: %s", id))
+	_, err = client.CancelSpotFleetRequests(ctx, &ec2.CancelSpotFleetRequestsInput{
 		SpotFleetRequestIds: []string{*taskRunner.SpotFleetRequestId},
 		TerminateInstances:  aws.Bool(true),
 	})
@@ -187,312 +150,55 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 		return err
 	}
 
-	ub.SetDescription(fmt.Sprintf("Waiting for instance: %s to finish.. This may take a few minutes..", id))
-	id, err = b.waitForInstance(ctx, name, *taskRunner.SpotFleetRequestId, types.InstanceStateNameTerminated)
+	log.Info(fmt.Sprintf("Waiting for instance: %s to finish.. This may take a few minutes..", id))
+	id, err = helpers.WaitForSpotFleetInstance(ctx, client, *taskRunner.SpotFleetRequestId, types.InstanceStateNameTerminated)
 	if err != nil {
 		return err
 	}
 
-	o, err := b.createLaunchTemplate(ctx, name, *volumeId, *volumeZone)
+	// get the best AMI to use for the devspace host
+	if opts.HostAMIID == "" {
+		hostAMI, err := helpers.FindHostAMI(ctx, client, devSpaceAMI.Architecture)
+		if err != nil {
+			return err
+		}
+		hostAMIID = hostAMI
+	}
+
+	// get the root device name fot this hostImage
+	hostAMI, err := helpers.GetImage(ctx, client, hostAMIID)
+	if err != nil {
+		return fmt.Errorf("error retrieving host ami: %v", err)
+	}
+	hostDeviceName := *hostAMI.RootDeviceName
+	hostStorageSize := *hostAMI.BlockDeviceMappings[0].Ebs.VolumeSize
+
+	// create the launch template
+	o, err := helpers.CreateLaunchTemplate(ctx, client, log, helpers.CreateLaunchTemplateInput{
+		Name:               name,
+		VolumeId:           *volumeId,
+		VolumeZone:         *volumeZone,
+		StartupScript:      startupScript,
+		SecurityGroupIds:   securityGroupIds,
+		InstanceProfileArn: &instanceProfileArn,
+		KeyName:            keyName,
+		Host: helpers.CreateLaunchTemplateHost{
+			AMIID: hostAMIID,
+			Device: helpers.CreateLaunchTemplateHostDevice{
+				Name:       hostDeviceName,
+				Size:       hostStorageSize,
+				Type:       string(hostAMI.BlockDeviceMappings[0].Ebs.VolumeType),
+				IOPS:       hostAMI.BlockDeviceMappings[0].Ebs.Iops,
+				Throughput: hostAMI.BlockDeviceMappings[0].Ebs.Throughput,
+			},
+		},
+	})
 	if err != nil {
 		return err
 	}
-	ub.SetDescription(fmt.Sprintf("Launch template created: %s", *o.LaunchTemplateId))
+	log.Info(fmt.Sprintf("Launch template created: %s", *o.LaunchTemplateId))
 
-	ub.SetDescription(fmt.Sprintf("DevSpace \"%s\" created successfully.", name))
+	log.Info(fmt.Sprintf("DevSpace \"%s\" created successfully.", name))
 
 	return nil
-}
-
-func (b *bootstrapper) createSecurityGroup(ctx context.Context, name string) (*string, error) {
-	b.ub.SetDescription("Creating security group..")
-
-	// get th default vpc id
-	vpc, err := b.ec2Client.DescribeVpcs(ctx, &ec2.DescribeVpcsInput{
-		Filters: []types.Filter{
-			{
-				Name:   aws.String("is-default"),
-				Values: []string{"true"},
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// create security group
-	out, err := b.ec2Client.CreateSecurityGroup(ctx, &ec2.CreateSecurityGroupInput{
-		GroupName:   aws.String(name),
-		Description: aws.String(fmt.Sprintf("Security group for dev-space %s", name)),
-		TagSpecifications: []types.TagSpecification{
-			{
-				ResourceType: types.ResourceTypeSecurityGroup,
-				Tags:         util.GenerateTags(name),
-			},
-		},
-		VpcId: vpc.Vpcs[0].VpcId,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// add ingress rules for ssh (22,2222) from anywhere
-	b.ub.SetDescription("Adding ingress rules for ssh..")
-	_, err = b.ec2Client.AuthorizeSecurityGroupIngress(ctx, &ec2.AuthorizeSecurityGroupIngressInput{
-		GroupId: out.GroupId,
-		IpPermissions: []types.IpPermission{
-			{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int32(22),
-				ToPort:     aws.Int32(22),
-				IpRanges: []types.IpRange{
-					{
-						Description: aws.String("Allow SSH from anywhere"),
-						CidrIp:      aws.String("0.0.0.0/0"),
-					},
-				},
-			},
-			{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int32(2222),
-				ToPort:     aws.Int32(2222),
-				IpRanges: []types.IpRange{
-					{
-						Description: aws.String("Allow SSH from anywhere"),
-						CidrIp:      aws.String("0.0.0.0/0"),
-					},
-				},
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return out.GroupId, nil
-}
-
-func (b *bootstrapper) createLaunchTemplate(ctx context.Context, name, volumeID, zone string) (*types.LaunchTemplate, error) {
-	dataScript := base64.StdEncoding.EncodeToString([]byte(b.template.StartupScript))
-
-	// create security group
-	groupId, err := b.createSecurityGroup(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-
-	b.template.SecurityGroupIds = append(b.template.SecurityGroupIds, *groupId)
-
-	// lauch template data
-	ltd := &types.RequestLaunchTemplateData{
-		KeyName: &b.template.KeyName,
-		ImageId: &b.template.HostAMIID,
-		Placement: &types.LaunchTemplatePlacementRequest{
-			AvailabilityZone: &zone,
-		},
-		UserData:         &dataScript,
-		SecurityGroupIds: b.template.SecurityGroupIds,
-		BlockDeviceMappings: []types.LaunchTemplateBlockDeviceMappingRequest{
-			{
-				DeviceName: &b.template.RootDeviceName,
-				Ebs: &types.LaunchTemplateEbsBlockDeviceRequest{
-					DeleteOnTermination: aws.Bool(true),
-					Encrypted:           aws.Bool(true),
-					VolumeSize:          &b.template.HostStorageSize,
-					VolumeType:          b.template.HostAMI.BlockDeviceMappings[0].Ebs.VolumeType,
-					Iops:                b.template.HostAMI.BlockDeviceMappings[0].Ebs.Iops,
-					Throughput:          b.template.HostAMI.BlockDeviceMappings[0].Ebs.Throughput,
-				},
-			},
-		},
-		TagSpecifications: []types.LaunchTemplateTagSpecificationRequest{
-			{
-				ResourceType: types.ResourceTypeInstance,
-				Tags:         util.GenerateTags(name),
-			},
-			{
-				ResourceType: types.ResourceTypeVolume,
-				Tags:         util.GenerateTags(name),
-			},
-		},
-	}
-
-	if b.template.InstanceProfileArn != "" {
-		ltd.IamInstanceProfile = &types.LaunchTemplateIamInstanceProfileSpecificationRequest{
-			Arn: &b.template.InstanceProfileArn,
-		}
-	}
-
-	// create launch template
-	b.ub.SetDescription("Creating launch template..")
-	o, err := b.ec2Client.CreateLaunchTemplate(ctx, &ec2.CreateLaunchTemplateInput{
-		LaunchTemplateName: aws.String(name),
-		ClientToken:        aws.String(uuid.NewV4().String()),
-		LaunchTemplateData: ltd,
-		TagSpecifications: []types.TagSpecification{
-			{
-				ResourceType: types.ResourceTypeLaunchTemplate,
-				Tags: append(
-					util.GenerateTags(name),
-					types.Tag{
-						Key:   aws.String("dev-spaces:zone"),
-						Value: &zone,
-					},
-					types.Tag{
-						Key:   aws.String("dev-spaces:volume-id"),
-						Value: &volumeID,
-					},
-				),
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return o.LaunchTemplate, nil
-}
-
-func (b *bootstrapper) createSpotTaskRunner(ctx context.Context, name string) (*ec2.RequestSpotFleetOutput, error) {
-	minVolumeSize := *b.template.DevSpaceAMI.BlockDeviceMappings[0].Ebs.VolumeSize
-	if b.template.StorageSize < minVolumeSize {
-		b.template.StorageSize = minVolumeSize
-	}
-
-	launchSpecification := types.SpotFleetLaunchSpecification{
-		ImageId: &b.template.DevSpaceAMIID,
-		KeyName: &b.template.KeyName,
-		BlockDeviceMappings: []types.BlockDeviceMapping{
-			{
-				DeviceName: b.template.DevSpaceAMI.BlockDeviceMappings[0].DeviceName,
-				Ebs: &types.EbsBlockDevice{
-					DeleteOnTermination: aws.Bool(false),
-					Encrypted:           aws.Bool(true),
-					Iops:                aws.Int32(3000),
-					Throughput:          aws.Int32(125),
-					VolumeSize:          aws.Int32(b.template.StorageSize),
-					VolumeType:          types.VolumeTypeGp3,
-				},
-			},
-		},
-		TagSpecifications: []types.SpotFleetTagSpecification{
-			{
-				ResourceType: types.ResourceTypeInstance,
-				Tags:         util.GenerateTags(name),
-			},
-		},
-	}
-
-	if b.template.PreferedInstanceType != "" {
-		launchSpecification.InstanceType = types.InstanceType(b.template.PreferedInstanceType)
-	}
-
-	if b.template.InstanceProfileArn != "" {
-		launchSpecification.IamInstanceProfile = &types.IamInstanceProfileSpecification{
-			Arn: &b.template.InstanceProfileArn,
-		}
-	}
-
-	input := &ec2.RequestSpotFleetInput{
-		SpotFleetRequestConfig: &types.SpotFleetRequestConfigData{
-			TargetCapacity:       aws.Int32(1),
-			ClientToken:          aws.String(uuid.NewV4().String()),
-			Type:                 types.FleetTypeRequest,
-			IamFleetRole:         aws.String("arn:aws:iam::568126575653:role/aws-ec2-spot-fleet-tagging-role"),
-			LaunchSpecifications: []types.SpotFleetLaunchSpecification{launchSpecification},
-			TagSpecifications: []types.TagSpecification{
-				{
-					ResourceType: types.ResourceTypeSpotFleetRequest,
-					Tags:         util.GenerateTags(name),
-				},
-			},
-		},
-	}
-
-	out, err := b.ec2Client.RequestSpotFleet(ctx, input)
-	if err != nil {
-		fmt.Println(err.Error())
-		return nil, err
-	}
-
-	return out, nil
-}
-
-func (b *bootstrapper) waitForInstance(ctx context.Context, name, requestID string, state types.InstanceStateName) (string, error) {
-	for {
-		time.Sleep(time.Second * 1)
-		out2, err := b.ec2Client.DescribeSpotFleetInstances(ctx, &ec2.DescribeSpotFleetInstancesInput{
-			SpotFleetRequestId: &requestID,
-		})
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-
-		if len(out2.ActiveInstances) == 0 && state == types.InstanceStateNameTerminated {
-			return "", nil
-		}
-
-		for _, s := range out2.ActiveInstances {
-			time.Sleep(time.Second * 1)
-			out, err := b.ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
-				InstanceIds: []string{*s.InstanceId},
-			})
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			for _, i := range out.Reservations {
-				for _, r := range i.Instances {
-					if r.State.Name == state {
-						return *r.InstanceId, nil
-					}
-				}
-			}
-
-		}
-	}
-}
-
-func (b *bootstrapper) templateExists(ctx context.Context, name string) (bool, error) {
-	t, err := GetLaunchTemplates(ctx, b.ec2Client)
-	if err != nil {
-		return false, err
-	}
-
-	for _, t := range t.LaunchTemplates {
-		if *t.LaunchTemplateName == name {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func (b *bootstrapper) findHostAMI(ctx context.Context, architecture types.ArchitectureValues) (string, error) {
-	var nextToken *string
-
-	for {
-		out, err := b.ssmClient.GetParametersByPath(ctx, &ssm.GetParametersByPathInput{
-			Path:      aws.String(AMI_PATH),
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return "", err
-		}
-
-		for _, p := range out.Parameters {
-			if strings.Contains(*p.Name, fmt.Sprintf("%s%s", API_PARAMETER_PREFIX, architecture)) {
-				return *p.Value, nil
-			}
-		}
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
-	}
-
-	return "", fmt.Errorf("no ami found for architecture %s", architecture)
 }

@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/felipemarinho97/dev-spaces/helpers"
 	"github.com/felipemarinho97/dev-spaces/util"
 	"github.com/felipemarinho97/invest-path/clients"
-	uuid "github.com/satori/go.uuid"
 	"gopkg.in/validator.v2"
 )
 
@@ -41,12 +40,12 @@ func (h Handler) Start(ctx context.Context, startOptions StartOptions) error {
 	timeout := startOptions.Timeout
 	tName, tVersion := util.GetTemplateNameAndVersion(name)
 
-	template, err := getLaunchTemplateByName(ctx, client, tName)
+	template, err := helpers.GetLaunchTemplateByName(ctx, client, tName)
 	if err != nil {
 		return err
 	}
 
-	out, err := createSpotRequest(ctx, client, name, tVersion, cpusSpec, minMemory, maxPrice, template, timeout)
+	out, err := helpers.CreateSpotRequest(ctx, client, name, tVersion, cpusSpec, minMemory, maxPrice, template, timeout)
 	if err != nil {
 		return err
 	}
@@ -56,6 +55,7 @@ func (h Handler) Start(ctx context.Context, startOptions StartOptions) error {
 
 	ub := util.NewUnknownBar("Waiting for instance request to be fulfilled...")
 	ub.Start()
+	defer ub.Stop()
 
 	// wait for instance to be running
 	instanceID, err := waitInstance(client, ctx, id, ub)
@@ -65,66 +65,12 @@ func (h Handler) Start(ctx context.Context, startOptions StartOptions) error {
 
 	// attach ebs volume
 	volumeID := util.GetTag(template.Tags, "dev-spaces:volume-id")
-	err = attachEBSVolume(ctx, client, instanceID, volumeID)
-
-	return nil
-}
-
-func createSpotRequest(ctx context.Context, client clients.IEC2Client, name, version string, cpusSpec, minMemory int, maxPrice string, template *types.LaunchTemplate, timeout time.Duration) (*ec2.RequestSpotFleetOutput, error) {
-	now := time.Now().UTC()
-	now = time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), 0, time.UTC)
-
-	if version == "" {
-		version = "$Default"
+	err = helpers.AttachEBSVolume(ctx, client, instanceID, volumeID)
+	if err != nil {
+		return err
 	}
 
-	out, err := client.RequestSpotFleet(ctx, &ec2.RequestSpotFleetInput{
-		SpotFleetRequestConfig: &types.SpotFleetRequestConfigData{
-			TagSpecifications: []types.TagSpecification{
-				{
-					ResourceType: types.ResourceTypeSpotFleetRequest,
-					Tags:         util.GenerateTags(name),
-				},
-			},
-			TargetCapacity:                   aws.Int32(1),
-			IamFleetRole:                     aws.String("arn:aws:iam::568126575653:role/aws-ec2-spot-fleet-tagging-role"),
-			AllocationStrategy:               types.AllocationStrategyLowestPrice,
-			ClientToken:                      aws.String(uuid.NewV4().String()),
-			ExcessCapacityTerminationPolicy:  types.ExcessCapacityTerminationPolicyDefault,
-			InstanceInterruptionBehavior:     types.InstanceInterruptionBehaviorTerminate,
-			TerminateInstancesWithExpiration: aws.Bool(true),
-			ValidFrom:                        aws.Time(now),
-			ValidUntil:                       aws.Time(now.Add(timeout)),
-			Type:                             types.FleetTypeRequest,
-			LaunchTemplateConfigs: []types.LaunchTemplateConfig{
-				{
-					LaunchTemplateSpecification: &types.FleetLaunchTemplateSpecification{
-						LaunchTemplateId: template.LaunchTemplateId,
-						Version:          &version,
-					},
-					Overrides: []types.LaunchTemplateOverrides{
-						{
-							SpotPrice:        &maxPrice,
-							AvailabilityZone: aws.String(util.GetTag(template.Tags, "dev-spaces:zone")),
-							InstanceRequirements: &types.InstanceRequirements{
-								VCpuCount: &types.VCpuCountRange{
-									Min: aws.Int32(int32(cpusSpec)),
-								},
-								MemoryMiB: &types.MemoryMiB{
-									Min: aws.Int32(int32(minMemory)),
-								},
-								BareMetal:            types.BareMetalIncluded,
-								BurstablePerformance: types.BurstablePerformanceIncluded,
-							},
-						},
-					},
-				},
-			},
-			SpotMaxTotalPrice: &maxPrice,
-		},
-	})
-
-	return out, err
+	return nil
 }
 
 func waitInstance(client clients.IEC2Client, ctx context.Context, id *string, ub *util.UnknownBar) (string, error) {
@@ -167,19 +113,4 @@ func waitInstance(client clients.IEC2Client, ctx context.Context, id *string, ub
 		}
 
 	}
-}
-
-func attachEBSVolume(ctx context.Context, client clients.IEC2Client, instanceID string, volumeID string) error {
-	out, err := client.AttachVolume(ctx, &ec2.AttachVolumeInput{
-		Device:     aws.String("/dev/sdf"),
-		InstanceId: aws.String(instanceID),
-		VolumeId:   aws.String(volumeID),
-	})
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("ebs-volume-id=%v\n", *out.VolumeId)
-
-	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/felipemarinho97/dev-spaces/handlers"
+	"github.com/felipemarinho97/dev-spaces/log"
 	awsUtil "github.com/felipemarinho97/invest-path/util"
 	"github.com/urfave/cli/v2"
 )
@@ -43,7 +44,9 @@ func GetCLI() *cli.App {
 			return nil
 		},
 		Compiled: time.Now(),
-		Before:   loadClients,
+		Before: func(ctx *cli.Context) error {
+			return loadClients(ctx)
+		},
 	}
 
 	app.Commands = []*cli.Command{
@@ -217,7 +220,7 @@ func GetCLI() *cli.App {
 			Name:        "destroy",
 			Description: "Destroy a dev space",
 			Category:    ADM,
-			Action:      handlers.Destroy,
+			Action:      destroyCommand,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:     "name",
@@ -229,14 +232,14 @@ func GetCLI() *cli.App {
 			Usage: "-n <name>",
 		},
 		{
-			Name:        "configure",
-			Description: "Configure a dev space. You can use this command to change instance type, storage size, dev-space region etc.",
-			Aliases:     []string{"config", "cfg"},
+			Name:        "tools",
+			Description: "Tools for configuring the dev space. You can use this sub-commands to change instance type, storage size, dev-space region etc.",
+			Aliases:     []string{"cfg"},
 			Category:    ADM,
 			Subcommands: []*cli.Command{
 				{
-					Name:        "spec",
-					Description: "Edit specifications of the dev space",
+					Name:        "scale",
+					Description: "Scale-up or scale-down specifications of the dev space",
 					Action:      editSpecCommand,
 					Flags: []cli.Flag{
 						&cli.StringFlag{
@@ -271,6 +274,32 @@ func GetCLI() *cli.App {
 					},
 					Usage: "-n <name> -i <identity-file> [-c <min-cpus> -m <min-memory> -p <max-price>]",
 				},
+				{
+					Name:        "copy",
+					Description: "Copy a dev space to a new region",
+					Action:      copyCommand,
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:     "name",
+							Aliases:  []string{"n"},
+							Usage:    "The name of the dev-space",
+							Required: true,
+						},
+						&cli.StringFlag{
+							Name:     "new-region",
+							Aliases:  []string{"r"},
+							Usage:    "The region to copy the dev-space to",
+							Required: true,
+						},
+						&cli.StringFlag{
+							Name:     "availability-zone",
+							Aliases:  []string{"z"},
+							Usage:    "The availability zone to copy the dev-space to",
+							Required: true,
+						},
+					},
+					Usage: "-n <name> -r <region> -z <availability-zone>",
+				},
 			},
 		},
 	}
@@ -287,8 +316,9 @@ func loadClients(c *cli.Context) error {
 
 	client := ec2.NewFromConfig(config)
 	ssmClient := ssm.NewFromConfig(config)
+	logger := log.NewCLILogger()
 
-	handler := handlers.NewHandler(client, ssmClient)
+	handler := handlers.NewHandler(config.Region, client, ssmClient, logger)
 
 	// inject the handler into the context
 	c.Context = context.WithValue(c.Context, "handler", handler)

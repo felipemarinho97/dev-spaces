@@ -2,16 +2,14 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/felipemarinho97/dev-spaces/helpers"
 	"github.com/felipemarinho97/dev-spaces/util"
-	"github.com/felipemarinho97/invest-path/clients"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -24,7 +22,7 @@ func (h *Handler) Status(ctx context.Context, opts StartOptions) error {
 	name := opts.Name
 	client := h.EC2Client
 
-	requests, err := getSpotRequestStatus(ctx, client, name)
+	requests, err := helpers.GetSpotRequestStatus(ctx, client, name)
 	if err != nil {
 		return err
 	}
@@ -77,21 +75,4 @@ func (h *Handler) Status(ctx context.Context, opts StartOptions) error {
 	table.Render()
 
 	return nil
-}
-
-func getSpotRequestStatus(ctx context.Context, client clients.IEC2Client, name string) ([]types.SpotFleetRequestConfig, error) {
-	requests, err := client.DescribeSpotFleetRequests(ctx, &ec2.DescribeSpotFleetRequestsInput{})
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	var filteredRequests []types.SpotFleetRequestConfig
-	for _, request := range requests.SpotFleetRequestConfigs {
-		if util.IsManaged(request.Tags) && util.IsDevSpace(request.Tags, name) {
-			filteredRequests = append(filteredRequests, request)
-		}
-	}
-
-	return filteredRequests, nil
 }

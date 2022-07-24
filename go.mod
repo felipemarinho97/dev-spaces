@@ -7,6 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.16.7
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.49.1
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.27.4
+	github.com/aws/smithy-go v1.12.0
 	github.com/felipemarinho97/invest-path/clients v1.2.0
 	github.com/felipemarinho97/invest-path/util v1.0.1
 	github.com/olekukonko/tablewriter v0.0.5
@@ -42,7 +43,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.16.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.9.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.14.0 // indirect
-	github.com/aws/smithy-go v1.12.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
