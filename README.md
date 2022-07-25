@@ -59,7 +59,7 @@ go install github.com/felipemarinho97/dev-spaces@latest
 
 Please, follow the steps in this document: [How to create a Dev Space](CREATING.md)
 
-For the legacy way of bootstraping (the hard way), please, follow these steps: [How to bootstrap a Dev Space from scratch](BOOTSTRAPPING.md)
+For the legacy way of bootstraping (for advanced users), please, follow these steps: [How to bootstrap a Dev Space from scratch](BOOTSTRAPPING.md)
 
 If you have any issue during the bootstrap progress, contact the author for more details on how to proceed.
 
