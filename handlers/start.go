@@ -44,7 +44,7 @@ func (h Handler) Start(ctx context.Context, startOptions StartOptions) error {
 		return err
 	}
 
-	out, err := helpers.CreateSpotRequest(ctx, client, name, tVersion, cpusSpec, minMemory, maxPrice, template, timeout)
+	out, err := helpers.CreateSpotRequest(ctx, client, tName, tVersion, cpusSpec, minMemory, maxPrice, template, timeout)
 	if err != nil {
 		return err
 	}

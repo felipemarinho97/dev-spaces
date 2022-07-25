@@ -22,9 +22,9 @@ $ chmod 400 MyKeyPair.pem
 Download one of the following bootstrap scripts:
  - [Bootstrap Script for Arch Linux](https://raw.githubusercontent.com/felipemarinho97/dev-spaces/master/examples/templates/arch.yaml)
 
-Edit the `key_name` and `instance_profile_arn` fields to match your key pair and instance profile you just created.
+Fell free to create your own bootstrap scripts and share them here.
 
-You can also edit the other fields to match your requirements, like the availability zone, the instance type, the EBS volume size, etc.
+Edit the `key_name` field to match your key pair you just created. You can also edit the other fields to match your requirements, like the availability zone, the instance type, instance profile, the EBS volume size, etc.
 
 Then, you can use the CLI to bootstrap a Dev Space.
 
