@@ -57,7 +57,7 @@ This means you are running a _stateful_ workloads on spot instances.
 go install github.com/felipemarinho97/dev-spaces@latest
 ```
 
-Please, follow the steps in this document: [How to create a Dev Space](CREATING.md)
+Please, follow the steps in this document: [How to create a Dev Space](CREATING.md) and [Configuring the CLI](CONFIGURATION.md).
 
 For the legacy way of bootstraping (for advanced users), please, follow these steps: [How to bootstrap a Dev Space from scratch](BOOTSTRAPPING.md)
 

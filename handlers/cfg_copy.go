@@ -39,7 +39,7 @@ func (h Handler) Copy(ctx context.Context, opts CopyOptions) (CopyOutput, error)
 	}
 
 	// check if it is a copy from the same region
-	if opts.Region == h.Region {
+	if opts.Region == h.Config.DefaultRegion {
 		return CopyOutput{}, errors.New("cannot copy from the same region")
 	}
 
@@ -89,7 +89,7 @@ func (h Handler) Copy(ctx context.Context, opts CopyOptions) (CopyOutput, error)
 	h.Logger.Info("copying the snapshot to the new region")
 	copySnapshot, err := newRegionClient.CopySnapshot(ctx, &ec2.CopySnapshotInput{
 		SourceSnapshotId: aws.String(snapshot),
-		SourceRegion:     aws.String(h.Region),
+		SourceRegion:     aws.String(h.Config.DefaultRegion),
 		Description:      aws.String(fmt.Sprintf("%s-%s", name, version)),
 	})
 	if err != nil {

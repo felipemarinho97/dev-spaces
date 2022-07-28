@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/felipemarinho97/dev-spaces/config"
 	"github.com/felipemarinho97/dev-spaces/handlers"
 	"github.com/felipemarinho97/dev-spaces/log"
 	awsUtil "github.com/felipemarinho97/invest-path/util"
@@ -308,17 +309,21 @@ func GetCLI() *cli.App {
 }
 
 func loadClients(c *cli.Context) error {
-	config, err := awsUtil.LoadAWSConfig()
-	config.Region = c.String("region")
+	cfg, err := awsUtil.LoadAWSConfig()
 	if err != nil {
 		return err
 	}
 
-	client := ec2.NewFromConfig(config)
-	ssmClient := ssm.NewFromConfig(config)
+	if c.String("region") != "" {
+		config.AppConfig.DefaultRegion = c.String("region")
+	}
+	cfg.Region = config.AppConfig.DefaultRegion
+
+	client := ec2.NewFromConfig(cfg)
+	ssmClient := ssm.NewFromConfig(cfg)
 	logger := log.NewCLILogger()
 
-	handler := handlers.NewHandler(config.Region, client, ssmClient, logger)
+	handler := handlers.NewHandler(config.AppConfig, client, ssmClient, logger)
 
 	// inject the handler into the context
 	c.Context = context.WithValue(c.Context, "handler", handler)
