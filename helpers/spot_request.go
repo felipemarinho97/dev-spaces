@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/felipemarinho97/dev-spaces/config"
 	"github.com/felipemarinho97/dev-spaces/log"
 	"github.com/felipemarinho97/dev-spaces/util"
 	"github.com/felipemarinho97/invest-path/clients"
@@ -33,7 +34,7 @@ func CreateSpotRequest(ctx context.Context, client clients.IEC2Client, name, ver
 				},
 			},
 			TargetCapacity:                   aws.Int32(1),
-			IamFleetRole:                     aws.String("arn:aws:iam::568126575653:role/aws-ec2-spot-fleet-tagging-role"), // TODO: get this from config
+			IamFleetRole:                     &config.AppConfig.SpotFleetRoleArn,
 			AllocationStrategy:               types.AllocationStrategyLowestPrice,
 			ClientToken:                      aws.String(uuid.NewV4().String()),
 			ExcessCapacityTerminationPolicy:  types.ExcessCapacityTerminationPolicyDefault,
@@ -161,7 +162,7 @@ func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in Cre
 			TargetCapacity:       aws.Int32(1),
 			ClientToken:          aws.String(uuid.NewV4().String()),
 			Type:                 types.FleetTypeRequest,
-			IamFleetRole:         aws.String("arn:aws:iam::568126575653:role/aws-ec2-spot-fleet-tagging-role"),
+			IamFleetRole:         &config.AppConfig.SpotFleetRoleArn,
 			LaunchSpecifications: []types.SpotFleetLaunchSpecification{launchSpecification},
 			TagSpecifications: []types.TagSpecification{
 				{
