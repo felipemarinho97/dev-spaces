@@ -114,7 +114,7 @@ func GetTemplateNameAndVersion(name string) (string, string) {
 
 	parts := strings.Split(name, "/")
 	if len(parts) == 1 {
-		return parts[0], "1"
+		return parts[0], "$Default"
 	}
 
 	return parts[0], parts[1]
