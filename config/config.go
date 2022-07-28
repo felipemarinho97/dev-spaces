@@ -58,7 +58,5 @@ func LoadConfig() error {
 		return err
 	}
 
-	fmt.Printf("Using config: %+v\n", AppConfig)
-
 	return nil
 }
