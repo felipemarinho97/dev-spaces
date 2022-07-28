@@ -27,7 +27,7 @@ $ mkdir -p $HOME/.config/dev-spaces/
 # download the config.toml file from the repository
 $ wget -O $HOME/.config/dev-spaces/config.toml https://raw.githubusercontent.com/felipemarinho97/dev-spaces/master/examples/config.toml
 # uncomment "spot_fleet_role_arn" line and replace the value with the ARN of the role you just created
-$ sed -i "s/^#spot_fleet_role_arn = \"<ROLE_ARN>\"/spot_fleet_role_arn = \"$ROLE_ARN\"/g" $HOME/.config/dev-spaces/config.toml
+$ sed -i -E "s|# spot_fleet_role_arn = \"<ROLE_ARN>\"|spot_fleet_role_arn = \"$ROLE_ARN\"|g" $HOME/.config/dev-spaces/config.toml
 ```
 
 
