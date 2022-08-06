@@ -16,6 +16,10 @@ The command below will use the pre-defined template to create an space with Amaz
 
     $ dev-spaces create -n MyAmazonLinux2022 -k MyKeyPair -i ami-034b81f0f1dd96797
 
+If you don't know an AMI ID, you can use the filter syntax to find the latest AMI for the region that matches your criteria. Here is an example using Canonical owner id, and ubuntu 22.04 image.
+
+    $ dev-spaces create -n Ubuntu -k MyKeyPair --ami 'name:ubuntu*22.04*,arch:x86_64,owner:099720109477'
+
 This AMI have the advantage of supporting running docker inside the Dev Space.
 
 Once created, you can use the command `dev-spaces start` to start the space.
