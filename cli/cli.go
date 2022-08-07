@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/felipemarinho97/dev-spaces/config"
 	"github.com/felipemarinho97/dev-spaces/handlers"
 	"github.com/felipemarinho97/dev-spaces/log"
@@ -320,10 +319,9 @@ func loadClients(c *cli.Context) error {
 	cfg.Region = config.AppConfig.DefaultRegion
 
 	client := ec2.NewFromConfig(cfg)
-	ssmClient := ssm.NewFromConfig(cfg)
 	logger := log.NewCLILogger()
 
-	handler := handlers.NewHandler(config.AppConfig, client, ssmClient, logger)
+	handler := handlers.NewHandler(config.AppConfig, client, logger)
 
 	// inject the handler into the context
 	c.Context = context.WithValue(c.Context, "handler", handler)
