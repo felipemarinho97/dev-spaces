@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/felipemarinho97/dev-spaces/config"
 	"github.com/felipemarinho97/dev-spaces/log"
 	"github.com/felipemarinho97/invest-path/clients"
@@ -13,7 +12,7 @@ type Handler struct {
 	Config    *config.Config
 }
 
-func NewHandler(cfg *config.Config, ec2Client clients.IEC2Client, ssmClient *ssm.Client, logger log.Logger) *Handler {
+func NewHandler(cfg *config.Config, ec2Client clients.IEC2Client, logger log.Logger) *Handler {
 	return &Handler{
 		EC2Client: ec2Client,
 		Logger:    logger,

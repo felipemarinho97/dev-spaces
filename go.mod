@@ -6,7 +6,6 @@ require (
 	github.com/aws/aws-sdk-go v1.43.41
 	github.com/aws/aws-sdk-go-v2 v1.16.7
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.49.1
-	github.com/aws/aws-sdk-go-v2/service/ssm v1.27.4
 	github.com/felipemarinho97/invest-path/clients v1.2.0
 	github.com/felipemarinho97/invest-path/util v1.0.1
 	github.com/go-playground/validator/v10 v10.11.0
