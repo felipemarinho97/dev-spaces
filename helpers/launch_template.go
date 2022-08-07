@@ -181,3 +181,10 @@ func TemplateExists(ctx context.Context, client clients.IEC2Client, name string)
 
 	return false, nil
 }
+
+func DeleteLaunchTemplate(ctx context.Context, client clients.IEC2Client, name string) error {
+	_, err := client.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{
+		LaunchTemplateName: aws.String(name),
+	})
+	return err
+}

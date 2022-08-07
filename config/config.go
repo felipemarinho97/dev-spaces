@@ -11,8 +11,6 @@ import (
 )
 
 type Config struct {
-	// SpotFleetRoleArn is the Spot Fleet Role ARN to use when launching Spot Instances.
-	SpotFleetRoleArn string `koanf:"spot_fleet_role_arn" validate:"required"`
 	// DefaultRegion is the default AWS region to use when making AWS API calls.
 	DefaultRegion string `koanf:"default_region"`
 }
@@ -57,8 +55,6 @@ func LoadConfig() error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("Using config: %+v\n", AppConfig)
 
 	return nil
 }

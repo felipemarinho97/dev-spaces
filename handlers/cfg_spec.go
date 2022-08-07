@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/felipemarinho97/dev-spaces/helpers"
 	"github.com/felipemarinho97/dev-spaces/util"
 	"github.com/felipemarinho97/dev-spaces/util/ssh"
@@ -32,8 +30,8 @@ type EditOutput struct {
 	InstanceIP string `json:"instance_ip"`
 	// InstanceType is the type of the instance
 	InstanceType string `json:"instance_type"`
-	// SpotFleetRequestID is the ID of the SpotFleetRequest
-	SpotFleetRequestID string `json:"spot_fleet_request_id"`
+	// FleetRequestID is the ID of the FleetRequest
+	FleetRequestID string `json:"fleet_request_id"`
 }
 
 func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutput, error) {
@@ -58,11 +56,11 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 	volumeID := util.GetTag(template.Tags, "dev-spaces:volume-id")
 
 	// get current spot instance request
-	currentReq, err := helpers.GetCurrentSpotRequest(ctx, client, name)
+	currentReq, err := helpers.GetCurrentFleetRequest(ctx, client, name)
 	if err != nil {
 		return EditOutput{}, err
 	}
-	instanceID, err := waitInstance(client, ctx, currentReq.SpotFleetRequestId, ub)
+	instanceID, err := waitInstance(client, ctx, currentReq.FleetId, ub)
 	if err != nil {
 		return EditOutput{}, err
 	}
@@ -73,14 +71,14 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 
 	// create instance
 	now := time.Now()
-	t := currentReq.SpotFleetRequestConfig.ValidUntil.Sub(now).Round(time.Second)
+	t := currentReq.ValidUntil.Sub(now).Round(time.Second)
 	out, err := helpers.CreateSpotRequest(ctx, client, name, version, opts.MinCPUs, opts.MinMemory, opts.MaxPrice, template, t)
 	if err != nil {
 		return EditOutput{}, err
 	}
 
 	// wait for instance to be running
-	instanceID, err = waitInstance(client, ctx, out.SpotFleetRequestId, ub)
+	instanceID, err = waitInstance(client, ctx, out.FleetId, ub)
 	if err != nil {
 		return EditOutput{}, err
 	}
@@ -130,19 +128,16 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 	}
 
 	// terminate old instance
-	_, err = client.CancelSpotFleetRequests(ctx, &ec2.CancelSpotFleetRequestsInput{
-		SpotFleetRequestIds: []string{*currentReq.SpotFleetRequestId},
-		TerminateInstances:  aws.Bool(true),
-	})
+	err = helpers.CancelFleetRequests(ctx, client, []string{*currentReq.FleetId})
 	if err != nil {
 		fmt.Println(err)
 		return EditOutput{}, err
 	}
 
 	return EditOutput{
-		InstanceID:         *newInstance.InstanceId,
-		InstanceIP:         *newInstance.PublicIpAddress,
-		InstanceType:       fmt.Sprint(newInstance.InstanceType),
-		SpotFleetRequestID: *out.SpotFleetRequestId,
+		InstanceID:     *newInstance.InstanceId,
+		InstanceIP:     *newInstance.PublicIpAddress,
+		InstanceType:   fmt.Sprint(newInstance.InstanceType),
+		FleetRequestID: *out.FleetId,
 	}, nil
 }

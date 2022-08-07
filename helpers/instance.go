@@ -73,11 +73,11 @@ func WaitUntilReachable(host string, port int) error {
 	}
 }
 
-func WaitForSpotFleetInstance(ctx context.Context, client clients.IEC2Client, requestID string, wantedState types.InstanceStateName) (string, error) {
+func WaitForFleetInstance(ctx context.Context, client clients.IEC2Client, requestID string, wantedState types.InstanceStateName) (string, error) {
 	for {
 		time.Sleep(time.Second * 1)
-		out2, err := client.DescribeSpotFleetInstances(ctx, &ec2.DescribeSpotFleetInstancesInput{
-			SpotFleetRequestId: &requestID,
+		out2, err := client.DescribeFleetInstances(ctx, &ec2.DescribeFleetInstancesInput{
+			FleetId: &requestID,
 		})
 		if err != nil {
 			fmt.Println(err)

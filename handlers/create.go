@@ -6,7 +6,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/felipemarinho97/dev-spaces/helpers"
 	"github.com/felipemarinho97/dev-spaces/util"
 )
@@ -110,8 +109,8 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 	if err != nil {
 		return err
 	}
-	log.Info(fmt.Sprintf("Spot task created: %s - Waiting instance to be assigned..", *taskRunner.SpotFleetRequestId))
-	id, err := helpers.WaitForSpotFleetInstance(ctx, client, *taskRunner.SpotFleetRequestId, types.InstanceStateNameRunning)
+	log.Info(fmt.Sprintf("Spot task created: %s - Waiting instance to be assigned..", *taskRunner.FleetId))
+	id, err := helpers.WaitForFleetInstance(ctx, client, *taskRunner.FleetId, types.InstanceStateNameRunning)
 	log.Info(fmt.Sprintf("Instance assigned: %s", id))
 	if err != nil {
 		return err
@@ -137,16 +136,19 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 
 	// cancel the spot task
 	log.Info(fmt.Sprintf("Stopping instance: %s", id))
-	_, err = client.CancelSpotFleetRequests(ctx, &ec2.CancelSpotFleetRequestsInput{
-		SpotFleetRequestIds: []string{*taskRunner.SpotFleetRequestId},
-		TerminateInstances:  aws.Bool(true),
-	})
+	err = helpers.CancelFleetRequests(ctx, client, []string{*taskRunner.FleetId})
+	if err != nil {
+		return err
+	}
+
+	// delete the runner template
+	err = helpers.DeleteLaunchTemplate(ctx, client, name+"-runner")
 	if err != nil {
 		return err
 	}
 
 	log.Info(fmt.Sprintf("Waiting for instance: %s to finish.. This may take a few minutes..", id))
-	id, err = helpers.WaitForSpotFleetInstance(ctx, client, *taskRunner.SpotFleetRequestId, types.InstanceStateNameTerminated)
+	id, err = helpers.WaitForFleetInstance(ctx, client, *taskRunner.FleetId, types.InstanceStateNameTerminated)
 	if err != nil {
 		return err
 	}

@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/felipemarinho97/dev-spaces/config"
 	"github.com/felipemarinho97/dev-spaces/log"
 	"github.com/felipemarinho97/dev-spaces/util"
 	"github.com/felipemarinho97/invest-path/clients"
@@ -17,7 +16,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-func CreateSpotRequest(ctx context.Context, client clients.IEC2Client, name, version string, cpusSpec, minMemory int, maxPrice string, template *types.LaunchTemplate, timeout time.Duration) (*ec2.RequestSpotFleetOutput, error) {
+func CreateSpotRequest(ctx context.Context, client clients.IEC2Client, name, version string, cpusSpec, minMemory int, maxPrice string, template *types.LaunchTemplate, timeout time.Duration) (*ec2.CreateFleetOutput, error) {
 	now := time.Now().UTC()
 	now = time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), 0, time.UTC)
 
@@ -25,51 +24,59 @@ func CreateSpotRequest(ctx context.Context, client clients.IEC2Client, name, ver
 		version = "$Default"
 	}
 
-	out, err := client.RequestSpotFleet(ctx, &ec2.RequestSpotFleetInput{
-		SpotFleetRequestConfig: &types.SpotFleetRequestConfigData{
-			TagSpecifications: []types.TagSpecification{
-				{
-					ResourceType: types.ResourceTypeSpotFleetRequest,
-					Tags:         util.GenerateTags(name),
+	out, err := client.CreateFleet(ctx, &ec2.CreateFleetInput{
+		LaunchTemplateConfigs: []types.FleetLaunchTemplateConfigRequest{
+			{
+				LaunchTemplateSpecification: &types.FleetLaunchTemplateSpecificationRequest{
+					LaunchTemplateId: template.LaunchTemplateId,
+					Version:          &version,
 				},
-			},
-			TargetCapacity:                   aws.Int32(1),
-			IamFleetRole:                     &config.AppConfig.SpotFleetRoleArn,
-			AllocationStrategy:               types.AllocationStrategyLowestPrice,
-			ClientToken:                      aws.String(uuid.NewV4().String()),
-			ExcessCapacityTerminationPolicy:  types.ExcessCapacityTerminationPolicyDefault,
-			InstanceInterruptionBehavior:     types.InstanceInterruptionBehaviorTerminate,
-			TerminateInstancesWithExpiration: aws.Bool(true),
-			ValidFrom:                        aws.Time(now),
-			ValidUntil:                       aws.Time(now.Add(timeout)),
-			Type:                             types.FleetTypeRequest,
-			LaunchTemplateConfigs: []types.LaunchTemplateConfig{
-				{
-					LaunchTemplateSpecification: &types.FleetLaunchTemplateSpecification{
-						LaunchTemplateId: template.LaunchTemplateId,
-						Version:          &version,
-					},
-					Overrides: []types.LaunchTemplateOverrides{
-						{
-							SpotPrice:        &maxPrice,
-							AvailabilityZone: aws.String(util.GetTag(template.Tags, "dev-spaces:zone")),
-							InstanceRequirements: &types.InstanceRequirements{
-								VCpuCount: &types.VCpuCountRange{
-									Min: aws.Int32(int32(cpusSpec)),
-								},
-								MemoryMiB: &types.MemoryMiB{
-									Min: aws.Int32(int32(minMemory)),
-								},
-								BareMetal:            types.BareMetalIncluded,
-								BurstablePerformance: types.BurstablePerformanceIncluded,
+				Overrides: []types.FleetLaunchTemplateOverridesRequest{
+					{
+						AvailabilityZone: aws.String(util.GetTag(template.Tags, "dev-spaces:zone")),
+						InstanceRequirements: &types.InstanceRequirementsRequest{
+							VCpuCount: &types.VCpuCountRangeRequest{
+								Min: aws.Int32(int32(cpusSpec)),
 							},
+							MemoryMiB: &types.MemoryMiBRequest{
+								Min: aws.Int32(int32(minMemory)),
+							},
+							BareMetal:            types.BareMetalIncluded,
+							BurstablePerformance: types.BurstablePerformanceIncluded,
 						},
+						MaxPrice: &maxPrice,
 					},
 				},
 			},
-			SpotMaxTotalPrice: &maxPrice,
+		},
+		TargetCapacitySpecification: &types.TargetCapacitySpecificationRequest{
+			TotalTargetCapacity:       aws.Int32(1),
+			DefaultTargetCapacityType: types.DefaultTargetCapacityTypeSpot,
+			OnDemandTargetCapacity:    aws.Int32(0),
+			SpotTargetCapacity:        aws.Int32(1),
+		},
+		ClientToken:                      aws.String(uuid.NewV4().String()),
+		ExcessCapacityTerminationPolicy:  types.FleetExcessCapacityTerminationPolicyTermination,
+		TerminateInstancesWithExpiration: aws.Bool(true),
+		Type:                             types.FleetTypeRequest,
+		ValidFrom:                        aws.Time(now),
+		ValidUntil:                       aws.Time(now.Add(timeout)),
+		SpotOptions: &types.SpotOptionsRequest{
+			AllocationStrategy:           types.SpotAllocationStrategyLowestPrice,
+			InstanceInterruptionBehavior: types.SpotInstanceInterruptionBehaviorTerminate,
+			MaxTotalPrice:                &maxPrice,
+		},
+		TagSpecifications: []types.TagSpecification{
+
+			{
+				ResourceType: types.ResourceTypeFleet,
+				Tags:         util.GenerateTags(name),
+			},
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return out, err
 }
@@ -92,20 +99,20 @@ type CreateSpotTaskInput struct {
 	Zone                *string
 }
 
-func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in CreateSpotTaskInput) (*ec2.RequestSpotFleetOutput, error) {
+func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in CreateSpotTaskInput) (*ec2.CreateFleetOutput, error) {
 	err := util.Validator.Struct(in)
 	if err != nil {
 		return nil, err
 	}
 
-	launchSpecification := types.SpotFleetLaunchSpecification{
+	launchSpecification := types.RequestLaunchTemplateData{
 		ImageId: in.AMIID,
 		KeyName: in.KeyName,
-		BlockDeviceMappings: []types.BlockDeviceMapping{
+		BlockDeviceMappings: []types.LaunchTemplateBlockDeviceMappingRequest{
 			{
 				DeviceName: in.DeviceName,
-				Ebs: &types.EbsBlockDevice{
-					DeleteOnTermination: aws.Bool(false),
+				Ebs: &types.LaunchTemplateEbsBlockDeviceRequest{
+					DeleteOnTermination: aws.Bool(true),
 					Encrypted:           aws.Bool(true),
 					Iops:                aws.Int32(3000),
 					Throughput:          aws.Int32(125),
@@ -114,7 +121,7 @@ func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in Cre
 				},
 			},
 		},
-		TagSpecifications: []types.SpotFleetTagSpecification{
+		TagSpecifications: []types.LaunchTemplateTagSpecificationRequest{
 			{
 				ResourceType: types.ResourceTypeInstance,
 				Tags:         util.GenerateTags(*in.Name),
@@ -126,11 +133,11 @@ func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in Cre
 		if in.PreferedLaunchSpecs.InstanceType != "" {
 			launchSpecification.InstanceType = types.InstanceType(in.PreferedLaunchSpecs.InstanceType)
 		} else {
-			launchSpecification.InstanceRequirements = &types.InstanceRequirements{
-				VCpuCount: &types.VCpuCountRange{
+			launchSpecification.InstanceRequirements = &types.InstanceRequirementsRequest{
+				VCpuCount: &types.VCpuCountRangeRequest{
 					Min: aws.Int32(in.PreferedLaunchSpecs.MinCPU),
 				},
-				MemoryMiB: &types.MemoryMiB{
+				MemoryMiB: &types.MemoryMiBRequest{
 					Min: aws.Int32(in.PreferedLaunchSpecs.MinMemory),
 				},
 				BareMetal:            types.BareMetalIncluded,
@@ -141,7 +148,7 @@ func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in Cre
 	}
 
 	if in.InstanceProfileArn != nil && *in.InstanceProfileArn != "" {
-		launchSpecification.IamInstanceProfile = &types.IamInstanceProfileSpecification{
+		launchSpecification.IamInstanceProfile = &types.LaunchTemplateIamInstanceProfileSpecificationRequest{
 			Arn: in.InstanceProfileArn,
 		}
 	}
@@ -152,29 +159,47 @@ func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in Cre
 	}
 
 	if in.Zone != nil && *in.Zone != "" {
-		launchSpecification.Placement = &types.SpotPlacement{
+		launchSpecification.Placement = &types.LaunchTemplatePlacementRequest{
 			AvailabilityZone: in.Zone,
 		}
 	}
 
-	input := &ec2.RequestSpotFleetInput{
-		SpotFleetRequestConfig: &types.SpotFleetRequestConfigData{
-			TargetCapacity:       aws.Int32(1),
-			ClientToken:          aws.String(uuid.NewV4().String()),
-			Type:                 types.FleetTypeRequest,
-			IamFleetRole:         &config.AppConfig.SpotFleetRoleArn,
-			LaunchSpecifications: []types.SpotFleetLaunchSpecification{launchSpecification},
-			TagSpecifications: []types.TagSpecification{
-				{
-					ResourceType: types.ResourceTypeSpotFleetRequest,
-					Tags:         util.GenerateTags(*in.Name),
-				},
-			},
-			AllocationStrategy: types.AllocationStrategyLowestPrice,
-		},
+	lt, err := client.CreateLaunchTemplate(ctx, &ec2.CreateLaunchTemplateInput{
+		LaunchTemplateName: aws.String(fmt.Sprintf("%s-runner", *in.Name)),
+		LaunchTemplateData: &launchSpecification,
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	out, err := client.RequestSpotFleet(ctx, input)
+	input := &ec2.CreateFleetInput{
+		LaunchTemplateConfigs: []types.FleetLaunchTemplateConfigRequest{
+			{
+				LaunchTemplateSpecification: &types.FleetLaunchTemplateSpecificationRequest{
+					LaunchTemplateId: lt.LaunchTemplate.LaunchTemplateId,
+					Version:          aws.String("$Latest"),
+				},
+			},
+		},
+		ClientToken: aws.String(uuid.NewV4().String()),
+		Type:        types.FleetTypeRequest,
+		TargetCapacitySpecification: &types.TargetCapacitySpecificationRequest{
+			DefaultTargetCapacityType: types.DefaultTargetCapacityTypeSpot,
+			TotalTargetCapacity:       aws.Int32(1),
+			SpotTargetCapacity:        aws.Int32(1),
+			OnDemandTargetCapacity:    aws.Int32(0),
+		},
+		SpotOptions: &types.SpotOptionsRequest{
+			AllocationStrategy: types.SpotAllocationStrategyLowestPrice,
+		},
+		TagSpecifications: []types.TagSpecification{
+			{
+				ResourceType: types.ResourceTypeFleet,
+				Tags:         util.GenerateTags(*in.Name),
+			},
+		},
+	}
+	out, err := client.CreateFleet(ctx, input)
 	if err != nil {
 		fmt.Println(err.Error())
 		return nil, err
@@ -183,15 +208,15 @@ func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in Cre
 	return out, nil
 }
 
-func GetSpotRequestStatus(ctx context.Context, client clients.IEC2Client, name string) ([]types.SpotFleetRequestConfig, error) {
-	requests, err := client.DescribeSpotFleetRequests(ctx, &ec2.DescribeSpotFleetRequestsInput{})
+func GetFleetStatus(ctx context.Context, client clients.IEC2Client, name string) ([]types.FleetData, error) {
+	requests, err := client.DescribeFleets(ctx, &ec2.DescribeFleetsInput{})
 	if err != nil {
 		fmt.Println(err.Error())
 		return nil, err
 	}
 
-	var filteredRequests []types.SpotFleetRequestConfig
-	for _, request := range requests.SpotFleetRequestConfigs {
+	var filteredRequests []types.FleetData
+	for _, request := range requests.Fleets {
 		if util.IsManaged(request.Tags) && util.IsDevSpace(request.Tags, name) {
 			filteredRequests = append(filteredRequests, request)
 		}
@@ -200,8 +225,8 @@ func GetSpotRequestStatus(ctx context.Context, client clients.IEC2Client, name s
 	return filteredRequests, nil
 }
 
-func GetCurrentSpotRequest(ctx context.Context, client clients.IEC2Client, name string) (*types.SpotFleetRequestConfig, error) {
-	requests, err := GetSpotRequestStatus(ctx, client, name)
+func GetCurrentFleetRequest(ctx context.Context, client clients.IEC2Client, name string) (*types.FleetData, error) {
+	requests, err := GetFleetStatus(ctx, client, name)
 	if err != nil {
 		return nil, err
 	}
@@ -209,8 +234,8 @@ func GetCurrentSpotRequest(ctx context.Context, client clients.IEC2Client, name 
 		return nil, fmt.Errorf("no spot instance request found for %s", name)
 	}
 
-	f := lo.Filter(requests, func(sfrc types.SpotFleetRequestConfig, i int) bool {
-		return sfrc.SpotFleetRequestState == types.BatchStateActive && sfrc.ActivityStatus == types.ActivityStatusFulfilled
+	f := lo.Filter(requests, func(sfrc types.FleetData, i int) bool {
+		return sfrc.FleetState == types.FleetStateCodeActive && sfrc.ActivityStatus == types.FleetActivityStatusFulfilled
 	})
 
 	if len(f) == 0 {
@@ -223,17 +248,17 @@ func GetCurrentSpotRequest(ctx context.Context, client clients.IEC2Client, name 
 }
 
 func CancelSpotRequest(ctx context.Context, client clients.IEC2Client, log log.Logger, name string) error {
-	requests, err := client.DescribeSpotFleetRequests(ctx, &ec2.DescribeSpotFleetRequestsInput{})
+	requests, err := client.DescribeFleets(ctx, &ec2.DescribeFleetsInput{})
 	if err != nil {
 		log.Error("Error getting spot requests:", err)
 		return err
 	}
 
 	var requestID []string
-	for _, request := range requests.SpotFleetRequestConfigs {
-		if (request.SpotFleetRequestState == types.BatchStateActive || request.SpotFleetRequestState == types.BatchStateSubmitted) &&
+	for _, request := range requests.Fleets {
+		if (request.FleetState == types.FleetStateCodeActive || request.FleetState == types.FleetStateCodeSubmitted) &&
 			util.IsDevSpace(request.Tags, name) {
-			requestID = append(requestID, *request.SpotFleetRequestId)
+			requestID = append(requestID, *request.FleetId)
 			break
 		}
 	}
@@ -243,15 +268,24 @@ func CancelSpotRequest(ctx context.Context, client clients.IEC2Client, log log.L
 		return nil
 	}
 
-	_, err = client.CancelSpotFleetRequests(ctx, &ec2.CancelSpotFleetRequestsInput{
-		SpotFleetRequestIds: requestID,
-		TerminateInstances:  aws.Bool(true),
-	})
+	err = CancelFleetRequests(ctx, client, requestID)
 	if err != nil {
-		log.Error("Error canceling spot request: ", err)
+		log.Error("Error cancelling spot request:", err)
 		return err
 	}
 
 	log.Info(fmt.Sprintf("Cancelled %d spot requests", len(requestID)))
+	return nil
+}
+
+func CancelFleetRequests(ctx context.Context, client clients.IEC2Client, ids []string) error {
+	_, err := client.DeleteFleets(ctx, &ec2.DeleteFleetsInput{
+		FleetIds:           ids,
+		TerminateInstances: aws.Bool(true),
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

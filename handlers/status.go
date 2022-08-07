@@ -22,7 +22,7 @@ func (h *Handler) Status(ctx context.Context, opts StartOptions) error {
 	name := opts.Name
 	client := h.EC2Client
 
-	requests, err := helpers.GetSpotRequestStatus(ctx, client, name)
+	requests, err := helpers.GetFleetStatus(ctx, client, name)
 	if err != nil {
 		return err
 	}
@@ -32,8 +32,8 @@ func (h *Handler) Status(ctx context.Context, opts StartOptions) error {
 	for _, request := range requests {
 		data = append(data, []string{
 			util.GetTag(request.Tags, "dev-spaces:name"),
-			string(request.SpotFleetRequestState),
-			*request.SpotFleetRequestId,
+			string(request.FleetState),
+			*request.FleetId,
 			string(request.CreateTime.Local().Format(time.RFC3339)),
 			string(request.ActivityStatus),
 		})

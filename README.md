@@ -3,11 +3,7 @@
 This is a CLI to help creating on-demand development spaces using EC2 Spot Intances.
 
 Currently, the following commands are availble:
-* [start](#starting-a-devspace)
-* [stop](#terminating-devspaces)
-* [status, list](#listing-my-devspaces)
-* [create](#creating-a-devspace)
-* [destroy](#destroying-a-devspace)
+* [start](#starting-a-devspace), [stop](#terminating-devspaces), [status, list](#listing-my-devspaces), [create](#creating-a-devspace), [bootstrap](BOOTSTRAPPING.md), [destroy](#destroying-a-devspace) and [tools](#configuration).
 
 
 ```bash
@@ -27,6 +23,9 @@ COMMANDS:
      create     -n <name> -k <key-name> -i <ami> [-p <instance-profile-arn> -s <storage-size> -t <prefered-instance-type>]
      bootstrap  -t <template> [-n <name>]
      destroy    -n <name>
+     tools
+       - scale
+       - copy
    DEV-SPACE:
      start   -n <name> [-c <min-cpus> -m <min-memory> --max-price <max-price> -t <timeout>]
      stop    [-n <name>]
@@ -137,5 +136,30 @@ $ dev-spaces destroy -n MySpace
 ✓ Destroying volume vol-069210dc254fcdc6b (0/-, 0 it/min)
 OK  
 ```
-
 **This WILL destroy everythng, including all your files.**
+
+
+## Tools
+or Configuration `dev-spaces cfg`
+
+### Scaling Up/Down the DevSpace
+
+The command below will scale up or down the DevSpace instance to the desired number of vCPUs and Memory (GBs).
+
+```bash
+$ dev-spaces tools scale -i ~/.ssh/MyKey.pem -n MySpace -c 4 -m 32
+```
+
+### Copying the DevSpace to another region
+
+You can use the command `dev-spaces tools copy` to copy the DevSpace to another region.
+
+```bash
+# lets say the current region is us-east-1
+$ export AWS_REGION=us-east-1
+# copy to us-west-1
+$ dev-spaces tools copy -n MySpace -r us-west-1 -z us-west-1a
+```
+
+Tip: If you want to move the DevSpace to another region, you can use the `copy` command and then the `destroy` command.
+

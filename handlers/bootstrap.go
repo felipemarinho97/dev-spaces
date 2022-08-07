@@ -98,7 +98,7 @@ func Bootstrap(c *cli.Context) error {
 	ub.SetDescription(fmt.Sprintf("creating instance for running bootstrap task: %s", name))
 	taskRunner, err := helpers.CreateSpotTaskRunner(ctx, client, helpers.CreateSpotTaskInput{
 		Name:        &name,
-		DeviceName:  aws.String("/dev/xvda"),
+		DeviceName:  bootstrapAMI.RootDeviceName,
 		StorageSize: bootstrapAMI.BlockDeviceMappings[0].Ebs.VolumeSize,
 		AMIID:       bootstrapAMI.ImageId,
 		KeyName:     &template.KeyName,
@@ -114,8 +114,8 @@ func Bootstrap(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	ub.SetDescription(fmt.Sprintf("spot task created: %s - waiting instance to be assigned", *taskRunner.SpotFleetRequestId))
-	id, err := helpers.WaitForSpotFleetInstance(ctx, client, *taskRunner.SpotFleetRequestId, types.InstanceStateNameRunning)
+	ub.SetDescription(fmt.Sprintf("spot task created: %s - waiting instance to be assigned", *taskRunner.FleetId))
+	id, err := helpers.WaitForFleetInstance(ctx, client, *taskRunner.FleetId, types.InstanceStateNameRunning)
 	ub.SetDescription(fmt.Sprintf("instance created: %s", id))
 	if err != nil {
 		return err
@@ -151,12 +151,18 @@ func Bootstrap(c *cli.Context) error {
 	}
 
 	ub.SetDescription(fmt.Sprintf("waiting for bootstrap_script on instance=%s to finish - this may take a few minutes", id))
-	id, err = helpers.WaitForSpotFleetInstance(ctx, client, *taskRunner.SpotFleetRequestId, types.InstanceStateNameTerminated)
+	id, err = helpers.WaitForFleetInstance(ctx, client, *taskRunner.FleetId, types.InstanceStateNameTerminated)
 	if err != nil {
 		return err
 	}
 	ub.SetDescription(fmt.Sprintf("Task terminated: %s", id))
 	ub.Stop()
+
+	// delete the runner template
+	err = helpers.DeleteLaunchTemplate(ctx, client, name+"-runner")
+	if err != nil {
+		return err
+	}
 
 	hostStorageSize := *hostAMI.BlockDeviceMappings[0].Ebs.VolumeSize
 

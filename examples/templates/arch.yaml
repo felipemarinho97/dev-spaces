@@ -9,9 +9,9 @@ host_ami:
 ## if you want to bootstrap on a specific availability zone, you can specify it here
 # availability_zone:
 prefered_instance_specs:
-  # instance_type: t2.micro # use this or min_memory and min_cpu
-  min_memory: 1024
-  min_cpu: 1
+  instance_type: t2.micro # use this or min_memory and min_cpu
+  # min_memory: 1024
+  # min_cpu: 1
 ## change this to your key pair name
 key_name:
 ## change this to your instance profile arn. format is: arn:aws:iam::<account-id>:instance-profile/<instance-profile-name>
