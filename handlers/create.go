@@ -141,6 +141,12 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 		return err
 	}
 
+	// delete the runner template
+	err = helpers.DeleteLaunchTemplate(ctx, client, name+"-runner")
+	if err != nil {
+		return err
+	}
+
 	log.Info(fmt.Sprintf("Waiting for instance: %s to finish.. This may take a few minutes..", id))
 	id, err = helpers.WaitForFleetInstance(ctx, client, *taskRunner.FleetId, types.InstanceStateNameTerminated)
 	if err != nil {

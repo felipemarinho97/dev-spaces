@@ -98,7 +98,7 @@ func Bootstrap(c *cli.Context) error {
 	ub.SetDescription(fmt.Sprintf("creating instance for running bootstrap task: %s", name))
 	taskRunner, err := helpers.CreateSpotTaskRunner(ctx, client, helpers.CreateSpotTaskInput{
 		Name:        &name,
-		DeviceName:  aws.String("/dev/xvda"),
+		DeviceName:  bootstrapAMI.RootDeviceName,
 		StorageSize: bootstrapAMI.BlockDeviceMappings[0].Ebs.VolumeSize,
 		AMIID:       bootstrapAMI.ImageId,
 		KeyName:     &template.KeyName,
@@ -157,6 +157,12 @@ func Bootstrap(c *cli.Context) error {
 	}
 	ub.SetDescription(fmt.Sprintf("Task terminated: %s", id))
 	ub.Stop()
+
+	// delete the runner template
+	err = helpers.DeleteLaunchTemplate(ctx, client, name+"-runner")
+	if err != nil {
+		return err
+	}
 
 	hostStorageSize := *hostAMI.BlockDeviceMappings[0].Ebs.VolumeSize
 

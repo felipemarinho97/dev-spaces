@@ -168,22 +168,26 @@ func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in Cre
 		LaunchTemplateName: aws.String(fmt.Sprintf("%s-runner", *in.Name)),
 		LaunchTemplateData: &launchSpecification,
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	input := &ec2.CreateFleetInput{
 		LaunchTemplateConfigs: []types.FleetLaunchTemplateConfigRequest{
 			{
 				LaunchTemplateSpecification: &types.FleetLaunchTemplateSpecificationRequest{
 					LaunchTemplateId: lt.LaunchTemplate.LaunchTemplateId,
-					Version:          aws.String(fmt.Sprintf("%d", *lt.LaunchTemplate.LatestVersionNumber)),
+					Version:          aws.String("$Latest"),
 				},
 			},
 		},
 		ClientToken: aws.String(uuid.NewV4().String()),
 		Type:        types.FleetTypeRequest,
 		TargetCapacitySpecification: &types.TargetCapacitySpecificationRequest{
-			TotalTargetCapacity:    aws.Int32(1),
-			SpotTargetCapacity:     aws.Int32(1),
-			OnDemandTargetCapacity: aws.Int32(0),
+			DefaultTargetCapacityType: types.DefaultTargetCapacityTypeSpot,
+			TotalTargetCapacity:       aws.Int32(1),
+			SpotTargetCapacity:        aws.Int32(1),
+			OnDemandTargetCapacity:    aws.Int32(0),
 		},
 		SpotOptions: &types.SpotOptionsRequest{
 			AllocationStrategy: types.SpotAllocationStrategyLowestPrice,
@@ -198,14 +202,6 @@ func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in Cre
 	out, err := client.CreateFleet(ctx, input)
 	if err != nil {
 		fmt.Println(err.Error())
-		return nil, err
-	}
-
-	// delete launch template
-	_, err = client.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{
-		LaunchTemplateId: lt.LaunchTemplate.LaunchTemplateId,
-	})
-	if err != nil {
 		return nil, err
 	}
 
