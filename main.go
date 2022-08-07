@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -11,7 +12,7 @@ import (
 func main() {
 	err := config.LoadConfig()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(fmt.Errorf("error loading config: %s\nPlease create a config.toml file or see: https://github.com/felipemarinho97/dev-spaces/blob/master/CONFIGURATION.md", err))
 	}
 
 	app := cli.GetCLI()

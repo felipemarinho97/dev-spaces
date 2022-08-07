@@ -114,8 +114,8 @@ func Bootstrap(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	ub.SetDescription(fmt.Sprintf("spot task created: %s - waiting instance to be assigned", *taskRunner.SpotFleetRequestId))
-	id, err := helpers.WaitForSpotFleetInstance(ctx, client, *taskRunner.SpotFleetRequestId, types.InstanceStateNameRunning)
+	ub.SetDescription(fmt.Sprintf("spot task created: %s - waiting instance to be assigned", *taskRunner.FleetId))
+	id, err := helpers.WaitForFleetInstance(ctx, client, *taskRunner.FleetId, types.InstanceStateNameRunning)
 	ub.SetDescription(fmt.Sprintf("instance created: %s", id))
 	if err != nil {
 		return err
@@ -151,7 +151,7 @@ func Bootstrap(c *cli.Context) error {
 	}
 
 	ub.SetDescription(fmt.Sprintf("waiting for bootstrap_script on instance=%s to finish - this may take a few minutes", id))
-	id, err = helpers.WaitForSpotFleetInstance(ctx, client, *taskRunner.SpotFleetRequestId, types.InstanceStateNameTerminated)
+	id, err = helpers.WaitForFleetInstance(ctx, client, *taskRunner.FleetId, types.InstanceStateNameTerminated)
 	if err != nil {
 		return err
 	}

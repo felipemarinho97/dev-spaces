@@ -49,7 +49,7 @@ func (h Handler) Start(ctx context.Context, startOptions StartOptions) error {
 		return err
 	}
 
-	id := out.SpotFleetRequestId
+	id := out.FleetId
 	fmt.Printf("spot-request-id=%v\n", *id)
 
 	ub := util.NewUnknownBar("Waiting for instance request to be fulfilled...")
@@ -75,8 +75,8 @@ func (h Handler) Start(ctx context.Context, startOptions StartOptions) error {
 func waitInstance(client clients.IEC2Client, ctx context.Context, id *string, ub *util.UnknownBar) (string, error) {
 	for {
 		time.Sleep(time.Second * 1)
-		out2, err := client.DescribeSpotFleetInstances(ctx, &ec2.DescribeSpotFleetInstancesInput{
-			SpotFleetRequestId: id,
+		out2, err := client.DescribeFleetInstances(ctx, &ec2.DescribeFleetInstancesInput{
+			FleetId: id,
 		})
 		if err != nil {
 			ub.Stop()
