@@ -107,9 +107,10 @@ func Bootstrap(c *cli.Context) error {
 			MinMemory:    template.PreferedInstanceSpecs.MinMemory,
 			MinCPU:       template.PreferedInstanceSpecs.MinCPU,
 		},
-		InstanceProfileArn: &template.InstanceProfileArn,
-		StartupScript:      aws.String(template.BootstrapScript + "\npoweroff"),
-		Zone:               &az,
+		InstanceProfileArn:        &template.InstanceProfileArn,
+		StartupScript:             aws.String(template.BootstrapScript + "\npoweroff"),
+		Zone:                      &az,
+		DeleteVolumeOnTermination: true,
 	})
 	if err != nil {
 		return err
