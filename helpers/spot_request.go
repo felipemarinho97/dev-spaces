@@ -88,15 +88,16 @@ type PreferedLaunchSpecs struct {
 }
 
 type CreateSpotTaskInput struct {
-	Name                *string `validate:"required"`
-	DeviceName          *string `validate:"required"`
-	StorageSize         *int32  `validate:"required"`
-	AMIID               *string `validate:"required"`
-	KeyName             *string `validate:"required"`
-	PreferedLaunchSpecs *PreferedLaunchSpecs
-	InstanceProfileArn  *string
-	StartupScript       *string
-	Zone                *string
+	Name                      *string `validate:"required"`
+	DeviceName                *string `validate:"required"`
+	StorageSize               *int32  `validate:"required"`
+	AMIID                     *string `validate:"required"`
+	KeyName                   *string `validate:"required"`
+	PreferedLaunchSpecs       *PreferedLaunchSpecs
+	InstanceProfileArn        *string
+	StartupScript             *string
+	Zone                      *string
+	DeleteVolumeOnTermination bool
 }
 
 func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in CreateSpotTaskInput) (*ec2.CreateFleetOutput, error) {
@@ -112,7 +113,7 @@ func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in Cre
 			{
 				DeviceName: in.DeviceName,
 				Ebs: &types.LaunchTemplateEbsBlockDeviceRequest{
-					DeleteOnTermination: aws.Bool(true),
+					DeleteOnTermination: &in.DeleteVolumeOnTermination,
 					Encrypted:           aws.Bool(true),
 					Iops:                aws.Int32(3000),
 					Throughput:          aws.Int32(125),
