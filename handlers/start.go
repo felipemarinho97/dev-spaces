@@ -62,9 +62,21 @@ func (h Handler) Start(ctx context.Context, startOptions StartOptions) error {
 		return err
 	}
 
+	// create elastic ip
+	eip, err := helpers.CreateElasticIP(ctx, client, name)
+	if err != nil {
+		return err
+	}
+
 	// attach ebs volume
 	volumeID := util.GetTag(template.Tags, "dev-spaces:volume-id")
 	err = helpers.AttachEBSVolume(ctx, client, instanceID, volumeID)
+	if err != nil {
+		return err
+	}
+
+	// associate elastic ip
+	_, err = helpers.AssociateElasticIP(ctx, client, instanceID, *eip.AllocationId)
 	if err != nil {
 		return err
 	}

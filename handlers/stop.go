@@ -25,6 +25,11 @@ func (h *Handler) Stop(ctx context.Context, opts StopOptions) error {
 	if err != nil {
 		return err
 	}
+
+	err = helpers.CleanElasticIPs(ctx, client, name)
+	if err != nil {
+		return err
+	}
 	log.Info("Stopped")
 	return nil
 }

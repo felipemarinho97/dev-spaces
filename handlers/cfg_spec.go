@@ -87,6 +87,12 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 		return EditOutput{}, err
 	}
 
+	// get elastic ip
+	elasticIP, err := helpers.GetElasticIP(ctx, client, name)
+	if err != nil {
+		return EditOutput{}, err
+	}
+
 	// wait until port 22 is reachable
 	err = helpers.WaitUntilReachable(*newInstance.PublicIpAddress, 22)
 	if err != nil {
@@ -123,6 +129,18 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 
 	// attach ebs volume on new instance
 	err = helpers.AttachEBSVolume(ctx, client, *newInstance.InstanceId, volumeID)
+	if err != nil {
+		return EditOutput{}, err
+	}
+
+	// disassociate elastic ip
+	_, err = helpers.DisassociateElasticIP(ctx, client, *elasticIP.AssociationId)
+	if err != nil {
+		return EditOutput{}, err
+	}
+
+	// associate elastic ip with new instance
+	_, err = helpers.AssociateElasticIP(ctx, client, *newInstance.InstanceId, *elasticIP.AllocationId)
 	if err != nil {
 		return EditOutput{}, err
 	}
