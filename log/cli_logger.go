@@ -29,37 +29,37 @@ func logDebug() bool {
 }
 
 func (l *cliLogger) Debug(args ...interface{}) {
-	if l.level >= DebugLevel {
+	if l.level <= DebugLevel {
 		l.ub.SetDescription(fmt.Sprint(args...))
 	}
 }
 
 func (l *cliLogger) Info(args ...interface{}) {
-	if l.level >= InfoLevel {
+	if l.level <= InfoLevel {
 		l.ub.SetDescription(fmt.Sprint(args...))
 	}
 }
 
 func (l *cliLogger) Warn(args ...interface{}) {
-	if l.level >= WarnLevel {
+	if l.level <= WarnLevel {
 		l.ub.SetDescription(fmt.Sprint(args...))
 	}
 }
 
 func (l *cliLogger) Error(args ...interface{}) {
-	if l.level >= ErrorLevel {
+	if l.level <= ErrorLevel {
 		l.ub.SetDescription(fmt.Sprint(args...))
 	}
 }
 
 func (l *cliLogger) Fatal(args ...interface{}) {
-	if l.level >= FatalLevel {
+	if l.level <= FatalLevel {
 		l.ub.SetDescription(fmt.Sprint(args...))
 	}
 }
 
 func (l *cliLogger) Panic(args ...interface{}) {
-	if l.level >= PanicLevel {
+	if l.level <= PanicLevel {
 		l.ub.SetDescription(fmt.Sprint(args...))
 	}
 }

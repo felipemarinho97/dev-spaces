@@ -88,6 +88,28 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 	if err != nil {
 		return fmt.Errorf("error describing host ami: %v", err)
 	}
+	log.Debug(fmt.Sprintf("AMI filter used: ID '%s', Name '%s', Arch '%s', Owner '%s'", opts.DevSpaceAMI.ID, opts.DevSpaceAMI.Name, opts.DevSpaceAMI.Arch, opts.DevSpaceAMI.Owner))
+	log.Info(fmt.Sprintf("Using dev space AMI: %s", *devSpaceAMI.ImageLocation))
+
+	// get the best AMI to use for the devspace host
+	var hostAMI *types.Image
+	if opts.HostAMI == nil {
+		hostAMI, err = helpers.FindHostAMI(ctx, client, devSpaceAMI.Architecture)
+		if err != nil {
+			return err
+		}
+	} else {
+		hostAMI, err = helpers.GetImageFromFilter(ctx, client, helpers.AMIFilter{
+			ID:    opts.HostAMI.ID,
+			Name:  opts.HostAMI.Name,
+			Arch:  opts.HostAMI.Arch,
+			Owner: opts.HostAMI.Owner,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	log.Debug(fmt.Sprintf("Using host AMI: %s", *hostAMI.ImageLocation))
 
 	if storageSize < *devSpaceAMI.BlockDeviceMappings[0].Ebs.VolumeSize {
 		storageSize = *devSpaceAMI.BlockDeviceMappings[0].Ebs.VolumeSize
@@ -151,25 +173,6 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 	id, err = helpers.WaitForFleetInstance(ctx, client, *taskRunner.FleetId, types.InstanceStateNameTerminated)
 	if err != nil {
 		return err
-	}
-
-	// get the best AMI to use for the devspace host
-	var hostAMI *types.Image
-	if opts.HostAMI == nil {
-		hostAMI, err = helpers.FindHostAMI(ctx, client, devSpaceAMI.Architecture)
-		if err != nil {
-			return err
-		}
-	} else {
-		hostAMI, err = helpers.GetImageFromFilter(ctx, client, helpers.AMIFilter{
-			ID:    opts.HostAMI.ID,
-			Name:  opts.HostAMI.Name,
-			Arch:  opts.HostAMI.Arch,
-			Owner: opts.HostAMI.Owner,
-		})
-		if err != nil {
-			return err
-		}
 	}
 
 	// get the root device name fot this hostImage
