@@ -21,12 +21,14 @@ func startCommand(c *cli.Context) error {
 	}
 	timeout := c.Duration("timeout")
 	minMemory := int(float64(1024) * memorySpec)
+	wait := c.Bool("wait")
 	return h.Start(ctx, handlers.StartOptions{
 		Name:      name,
 		MinCPUs:   cpusSpec,
 		MinMemory: minMemory,
 		MaxPrice:  maxPrice,
 		Timeout:   timeout,
+		Wait:      wait,
 	})
 }
 
