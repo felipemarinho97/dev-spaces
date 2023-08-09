@@ -38,7 +38,7 @@ func CreateEBSVolume(ctx context.Context, client clients.IEC2Client, name string
 }
 
 func AttachEBSVolume(ctx context.Context, client clients.IEC2Client, instanceID string, volumeID string) error {
-	out, err := client.AttachVolume(ctx, &ec2.AttachVolumeInput{
+	_, err := client.AttachVolume(ctx, &ec2.AttachVolumeInput{
 		Device:     aws.String("/dev/sdf"),
 		InstanceId: aws.String(instanceID),
 		VolumeId:   aws.String(volumeID),
@@ -46,8 +46,6 @@ func AttachEBSVolume(ctx context.Context, client clients.IEC2Client, instanceID 
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("ebs-volume-id=%v\n", *out.VolumeId)
 
 	return nil
 }
