@@ -68,7 +68,7 @@ func GetImageFromFilter(ctx context.Context, client clients.IEC2Client, filter A
 	}
 
 	if len(out.Images) == 0 {
-		return nil, fmt.Errorf("no image found with ID %s", filter.ID)
+		return nil, fmt.Errorf("no image found with filter: ID %s, Name %s, Arch %s, Owner %s", filter.ID, filter.Name, filter.Arch, filter.Owner)
 	}
 
 	// sort by most recent
@@ -92,7 +92,7 @@ func GetImageFromFilter(ctx context.Context, client clients.IEC2Client, filter A
 // FindHostAMI returns the AMI ID for the host machine
 func FindHostAMI(ctx context.Context, client clients.IEC2Client, architecture types.ArchitectureValues) (*types.Image, error) {
 	return GetImageFromFilter(ctx, client, AMIFilter{
-		Name:  "al2022-ami-minimal-*",
+		Name:  "al*-ami-minimal-*",
 		Arch:  fmt.Sprintf("%s", architecture),
 		Owner: "amazon",
 	})
