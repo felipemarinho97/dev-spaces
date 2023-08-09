@@ -53,7 +53,7 @@ func GetCLI() *cli.App {
 		{
 			Name:        "start",
 			Description: "Starts the dev environment by placing a spot request.",
-			Usage:       "-n <name> [-c <min-cpus> -m <min-memory> --max-price <max-price> -t <timeout>]",
+			Usage:       "-n <name> [-c <min-cpus> -m <min-memory> --max-price <max-price> -t <timeout> --wait]",
 			Category:    LIFECYCLE,
 			Action:      startCommand,
 			Flags: []cli.Flag{
@@ -85,6 +85,11 @@ func GetCLI() *cli.App {
 					Aliases: []string{"t"},
 					Value:   time.Hour * 1,
 					Usage:   "Timeout for the spot request",
+				},
+				&cli.BoolFlag{
+					Name:  "wait",
+					Value: false,
+					Usage: "Wait for DevSpace instance to be ready for SSH",
 				},
 			},
 		},

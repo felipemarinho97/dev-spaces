@@ -35,6 +35,11 @@ type EditOutput struct {
 }
 
 func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutput, error) {
+	log := h.Logger
+	ub := util.NewUnknownBar("Editing..")
+	ub.Start()
+	defer ub.Stop()
+
 	err := util.Validator.Struct(opts)
 	if err != nil {
 		return EditOutput{}, err
@@ -46,7 +51,6 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 	}
 
 	client := h.EC2Client
-	ub := util.NewUnknownBar("Editing...")
 
 	name, version := util.GetTemplateNameAndVersion(opts.Name)
 	template, err := helpers.GetLaunchTemplateByName(ctx, client, name)
@@ -60,7 +64,7 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 	if err != nil {
 		return EditOutput{}, err
 	}
-	instanceID, err := waitInstance(client, ctx, currentReq.FleetId, ub)
+	instanceID, err := waitInstance(ctx, client, log, currentReq.FleetId)
 	if err != nil {
 		return EditOutput{}, err
 	}
@@ -70,6 +74,7 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 	}
 
 	// create instance
+	log.Info("Creating new instance...")
 	now := time.Now()
 	t := currentReq.ValidUntil.Sub(now).Round(time.Second)
 	out, err := helpers.CreateSpotRequest(ctx, client, name, version, opts.MinCPUs, opts.MinMemory, opts.MaxPrice, template, t)
@@ -78,11 +83,17 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 	}
 
 	// wait for instance to be running
-	instanceID, err = waitInstance(client, ctx, out.FleetId, ub)
+	instanceID, err = waitInstance(ctx, client, log, out.FleetId)
 	if err != nil {
 		return EditOutput{}, err
 	}
 	newInstance, err := helpers.GetInstanceData(ctx, client, instanceID)
+	if err != nil {
+		return EditOutput{}, err
+	}
+
+	// get elastic ip
+	elasticIP, err := helpers.GetElasticIP(ctx, client, name)
 	if err != nil {
 		return EditOutput{}, err
 	}
@@ -126,13 +137,29 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 	if err != nil {
 		return EditOutput{}, err
 	}
+	log.Info(fmt.Sprintf("Attached EBS volume with id=%s on the new instance", volumeID))
+
+	// disassociate elastic ip
+	_, err = helpers.DisassociateElasticIP(ctx, client, *elasticIP.AssociationId)
+	if err != nil {
+		return EditOutput{}, err
+	}
+
+	// associate elastic ip with new instance
+	_, err = helpers.AssociateElasticIP(ctx, client, *newInstance.InstanceId, *elasticIP.AllocationId)
+	if err != nil {
+		return EditOutput{}, err
+	}
+	log.Info(fmt.Sprintf("Associated elastic ip %s on the new instance", *elasticIP.PublicIp))
 
 	// terminate old instance
 	err = helpers.CancelFleetRequests(ctx, client, []string{*currentReq.FleetId})
 	if err != nil {
-		fmt.Println(err)
+		log.Error(err)
 		return EditOutput{}, err
 	}
+	log.Info("Terminated old instance with id: ", *currentInstance.InstanceId)
+	log.Info("Scaled successfully!")
 
 	return EditOutput{
 		InstanceID:     *newInstance.InstanceId,
