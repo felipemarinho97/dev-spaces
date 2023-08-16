@@ -35,13 +35,13 @@ mv /tmp/dev-spaces $HOME_BIN
 
 # Check if the binary is in PATH, if not, add it
 if [[ ":$PATH:" != *":$HOME_BIN:"* ]]; then
-    echo "Adding $HOME_BIN to PATH ..."
+    echo "Adding $HOME_BIN/dev-spaces executable to PATH ..."
 
     # determine the shell rcfile
     case $SHELL in
-        /bin/bash) RCFILE=~/.bashrc ;;
-        /bin/zsh) RCFILE=~/.zshrc ;;
-        /bin/fish) RCFILE=~/.config/fish/config.fish ;;
+        */bash) RCFILE=~/.bashrc ;;
+        */zsh) RCFILE=~/.zshrc ;;
+        */fish) RCFILE=~/.config/fish/config.fish ;;
         *) RCFILE=~/.bashrc ;;
     esac
 
@@ -53,3 +53,4 @@ fi
 ln -sf $HOME_BIN/dev-spaces $HOME_BIN/ds
 
 echo "Done!"
+echo "Run 'dev-spaces --help' or 'ds --help' to get started"
