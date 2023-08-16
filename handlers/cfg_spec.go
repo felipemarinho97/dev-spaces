@@ -64,11 +64,7 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 	if err != nil {
 		return EditOutput{}, err
 	}
-	instanceID, err := waitInstance(ctx, client, log, currentReq.FleetId)
-	if err != nil {
-		return EditOutput{}, err
-	}
-	currentInstance, err := helpers.GetInstanceData(ctx, client, instanceID)
+	currentInstance, err := waitInstance(ctx, client, log, currentReq.FleetId)
 	if err != nil {
 		return EditOutput{}, err
 	}
@@ -83,17 +79,7 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 	}
 
 	// wait for instance to be running
-	instanceID, err = waitInstance(ctx, client, log, out.FleetId)
-	if err != nil {
-		return EditOutput{}, err
-	}
-	newInstance, err := helpers.GetInstanceData(ctx, client, instanceID)
-	if err != nil {
-		return EditOutput{}, err
-	}
-
-	// get elastic ip
-	elasticIP, err := helpers.GetElasticIP(ctx, client, name)
+	newInstance, err := waitInstance(ctx, client, log, out.FleetId)
 	if err != nil {
 		return EditOutput{}, err
 	}
@@ -109,16 +95,14 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 	if err != nil {
 		return EditOutput{}, err
 	}
-	o, err := sshClient.Run("sudo machinectl terminate devspace")
+	_, err = sshClient.Run("sudo machinectl terminate devspace")
 	if err != nil {
 		return EditOutput{}, err
 	}
-	fmt.Print(o)
-	o, err = sshClient.Run("sudo umount /dev/sdf1")
+	_, err = sshClient.Run("sudo umount /dev/sdf1")
 	if err != nil {
 		return EditOutput{}, err
 	}
-	fmt.Print(o)
 
 	// detach ebs volume
 	_, err = helpers.DetachEBSVolume(ctx, client, volumeID)
@@ -138,19 +122,6 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 		return EditOutput{}, err
 	}
 	log.Info(fmt.Sprintf("Attached EBS volume with id=%s on the new instance", volumeID))
-
-	// disassociate elastic ip
-	_, err = helpers.DisassociateElasticIP(ctx, client, *elasticIP.AssociationId)
-	if err != nil {
-		return EditOutput{}, err
-	}
-
-	// associate elastic ip with new instance
-	_, err = helpers.AssociateElasticIP(ctx, client, *newInstance.InstanceId, *elasticIP.AllocationId)
-	if err != nil {
-		return EditOutput{}, err
-	}
-	log.Info(fmt.Sprintf("Associated elastic ip %s on the new instance", *elasticIP.PublicIp))
 
 	// terminate old instance
 	err = helpers.CancelFleetRequests(ctx, client, []string{*currentReq.FleetId})

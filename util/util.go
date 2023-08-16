@@ -224,3 +224,11 @@ func ParseAMIFilter(filter string) (AMIFilter, error) {
 
 	return amiFilter, nil
 }
+
+func Map[A any, B any](input []A, m func(A) B) []B {
+	output := make([]B, len(input))
+	for i, element := range input {
+		output[i] = m(element)
+	}
+	return output
+}
