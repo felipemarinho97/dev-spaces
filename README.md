@@ -52,9 +52,13 @@ This means you are running a _stateful_ workloads on spot instances.
 
 ## How I can use it?
 
+First, you need to install the CLI. You can do it by running the command below:
+
 ```bash
-go install github.com/felipemarinho97/dev-spaces@latest
+curl -sL https://raw.githubusercontent.com/felipemarinho97/dev-spaces/master/install.sh | bash
 ```
+
+If you prefer, you can download the binary from the [releases page](https://github.com/felipemarinho97/dev-spaces/releases).
 
 Please, follow the steps in this document: [How to create a Dev Space](CREATING.md) and [Configuring the CLI](CONFIGURATION.md).
 

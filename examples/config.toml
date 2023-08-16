@@ -1,1 +1,6 @@
 # default_region = "us-east-1"
+
+# [dynamicdns]
+# endpoint = "https://dns.devspaces.online/update-dns"
+# token = "YOUR_TOKEN_HERE"
+# domain = "devspaces.online"

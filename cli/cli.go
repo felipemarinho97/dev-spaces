@@ -1,4 +1,4 @@
-package cli
+package main
 
 import (
 	"context"
@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/felipemarinho97/dev-spaces/config"
-	"github.com/felipemarinho97/dev-spaces/handlers"
-	"github.com/felipemarinho97/dev-spaces/log"
+	"github.com/felipemarinho97/dev-spaces/cli/commands"
+	"github.com/felipemarinho97/dev-spaces/cli/config"
+	"github.com/felipemarinho97/dev-spaces/cli/log"
+	"github.com/felipemarinho97/dev-spaces/core"
 	awsUtil "github.com/felipemarinho97/invest-path/util"
 	"github.com/urfave/cli/v2"
 )
@@ -55,7 +56,7 @@ func GetCLI() *cli.App {
 			Description: "Starts the dev environment by placing a spot request.",
 			Usage:       "-n <name> [-c <min-cpus> -m <min-memory> --max-price <max-price> -t <timeout> --wait]",
 			Category:    LIFECYCLE,
-			Action:      startCommand,
+			Action:      commands.StartCommand,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:     "name",
@@ -98,7 +99,7 @@ func GetCLI() *cli.App {
 			Description: "Stops the dev environment by canceling the spot request.",
 			Usage:       "[-n <name>]",
 			Category:    LIFECYCLE,
-			Action:      stopCommand,
+			Action:      commands.StopCommand,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "name",
@@ -112,7 +113,7 @@ func GetCLI() *cli.App {
 			Description: "Shows the status of the most recent dev-space requests.",
 			Usage:       "[-n <name>]",
 			Category:    LIFECYCLE,
-			Action:      statusCommand,
+			Action:      commands.StatusCommand,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "name",
@@ -126,7 +127,7 @@ func GetCLI() *cli.App {
 			Description: "Create a the dev space environment automatically.",
 
 			Category: ADM,
-			Action:   createCommand,
+			Action:   commands.CreateCommand,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:     "name",
@@ -186,7 +187,7 @@ func GetCLI() *cli.App {
 			Name:        "list",
 			Description: "List all the dev spaces",
 			Category:    LIFECYCLE,
-			Action:      listCommand,
+			Action:      commands.ListCommand,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "output",
@@ -198,34 +199,10 @@ func GetCLI() *cli.App {
 			Usage: "[-o <output>]",
 		},
 		{
-			Name:        "bootstrap",
-			Description: "Bootstrap a the dev space environment from an template file (Advanced)",
-			Category:    ADM,
-			Action:      handlers.Bootstrap,
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:    "name",
-					Aliases: []string{"n"},
-					Usage:   "The name of the dev-space",
-				},
-				&cli.StringFlag{
-					Name:     "template",
-					Aliases:  []string{"t"},
-					Required: true,
-					Usage:    "The template (file ou url) to use",
-				},
-				&cli.StringFlag{
-					Name:    "region",
-					EnvVars: []string{"AWS_REGION"},
-				},
-			},
-			Usage: "-t <template> [-n <name>]",
-		},
-		{
 			Name:        "destroy",
 			Description: "Destroy a dev space",
 			Category:    ADM,
-			Action:      destroyCommand,
+			Action:      commands.DestroyCommand,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:     "name",
@@ -245,7 +222,7 @@ func GetCLI() *cli.App {
 				{
 					Name:        "scale",
 					Description: "Scale-up or scale-down specifications of the dev space",
-					Action:      editSpecCommand,
+					Action:      commands.EditSpecCommand,
 					Flags: []cli.Flag{
 						&cli.StringFlag{
 							Name:     "name",
@@ -282,7 +259,7 @@ func GetCLI() *cli.App {
 				{
 					Name:        "copy",
 					Description: "Copy a dev space to a new region",
-					Action:      copyCommand,
+					Action:      commands.CopyCommand,
 					Flags: []cli.Flag{
 						&cli.StringFlag{
 							Name:     "name",
@@ -326,10 +303,13 @@ func loadClients(c *cli.Context) error {
 	client := ec2.NewFromConfig(cfg)
 	logger := log.NewCLILogger()
 
-	handler := handlers.NewHandler(config.AppConfig, client, logger)
+	handler := core.NewHandler(core.Config{DefaultRegion: cfg.Region}, client, logger)
 
 	// inject the handler into the context
 	c.Context = context.WithValue(c.Context, "handler", handler)
+
+	// inject the app config into the context
+	c.Context = context.WithValue(c.Context, "config", config.AppConfig)
 
 	return nil
 }
