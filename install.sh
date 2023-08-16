@@ -31,7 +31,7 @@ chmod +x /tmp/dev-spaces
 # Move the binary to a PATH under home directory
 HOME_BIN=$HOME/bin
 mkdir -p $HOME_BIN
-mv dev-spaces $HOME_BIN
+mv /tmp/dev-spaces $HOME_BIN
 
 # Check if the binary is in PATH, if not, add it
 if [[ ":$PATH:" != *":$HOME_BIN:"* ]]; then
