@@ -24,19 +24,29 @@ type StartOptions struct {
 	MaxPrice string `validate:"required"`
 	// Timeout is the time in minutes to wait for the instance to be running
 	Timeout time.Duration `validate:"min=0"`
-	// Wait is a flag to wait for the instance to be running
-	Wait bool
 }
 
-func (h Handler) Start(ctx context.Context, startOptions StartOptions) error {
+type StartOutput struct {
+	// InstanceID is the instance id
+	InstanceID string
+	// Type is the instance type
+	Type string
+	// PublicIP is the public PublicIP of the instance
+	PublicIP string
+	// DNS is the DNS name of the instance
+	DNS string
+	// CustomDNS is the custom DNS name of the instance
+	CustomDNS string
+	// Port is the port to connect to the instance
+	Port int
+}
+
+func (h Handler) Start(ctx context.Context, startOptions StartOptions) (StartOutput, error) {
 	log := h.Logger
-	ub := util.NewUnknownBar("Starting..")
-	ub.Start()
-	defer ub.Stop()
 
 	err := util.Validator.Struct(startOptions)
 	if err != nil {
-		return err
+		return StartOutput{}, err
 	}
 
 	client := h.EC2Client
@@ -45,66 +55,57 @@ func (h Handler) Start(ctx context.Context, startOptions StartOptions) error {
 	cpusSpec := startOptions.MinCPUs
 	maxPrice := startOptions.MaxPrice
 	timeout := startOptions.Timeout
-	wait := startOptions.Wait
 	tName, tVersion := util.GetTemplateNameAndVersion(name)
 
 	template, err := helpers.GetLaunchTemplateByName(ctx, client, tName)
 	if err != nil {
-		return err
+		return StartOutput{}, err
 	}
 
 	out, err := helpers.CreateSpotRequest(ctx, client, tName, tVersion, cpusSpec, minMemory, maxPrice, template, timeout)
 	if err != nil {
-		return err
+		return StartOutput{}, err
 	}
 
-	id := out.FleetId
-	log.Debug("Created spot fleet request with id: ", *id)
+	fleetRequestID := out.FleetId
+	log.Debug("Created spot fleet request with id: ", *fleetRequestID)
 
 	// wait for instance to be running
 	log.Info("Waiting for instance to be running...")
-	instanceID, err := waitInstance(ctx, client, log, id)
+	instance, err := waitInstance(ctx, client, log, fleetRequestID)
 	if err != nil {
-		return err
+		return StartOutput{}, err
 	}
 
-	// create elastic ip
-	eip, err := helpers.CreateElasticIP(ctx, client, name)
+	ip := *instance.PublicIpAddress
+
+	// add dns record
+	customDNS, err := helpers.CreateDNSRecord(*h.Config, ip, name)
 	if err != nil {
-		return err
+		log.Warn(fmt.Printf("Error creating DNS record: %s. Falling back to IPv4 address: %s", err, ip))
+	} else {
+		log.Info(fmt.Printf("Created DNS record: %s -> %s", ip, customDNS))
 	}
-	log.Info("Allocated elastic ip with address: ", *eip.PublicIp)
 
 	// attach ebs volume
 	volumeID := util.GetTag(template.Tags, "dev-spaces:volume-id")
-	err = helpers.AttachEBSVolume(ctx, client, instanceID, volumeID)
+	err = helpers.AttachEBSVolume(ctx, client, *instance.InstanceId, volumeID)
 	if err != nil {
-		return err
+		return StartOutput{}, err
 	}
 	log.Info("Attached EBS volume with id: ", volumeID)
 
-	// associate elastic ip
-	_, err = helpers.AssociateElasticIP(ctx, client, instanceID, *eip.AllocationId)
-	if err != nil {
-		return err
-	}
-
-	if wait {
-		// wait until port 2222 is reachable
-		log.Info("Waiting for port 2222 to be reachable...")
-		err = helpers.WaitUntilReachable(*eip.PublicIp, 2222)
-		if err != nil {
-			return err
-		}
-
-		log.Info("You can now ssh into your dev space with the following command: ")
-		fmt.Printf("$ ssh -i <your-key.pem> -p 2222 root@%s\n", *eip.PublicIp)
-	}
-
-	return nil
+	return StartOutput{
+		InstanceID: *instance.InstanceId,
+		Type:       string(instance.InstanceType),
+		PublicIP:   ip,
+		Port:       22,
+		DNS:        *instance.PublicDnsName,
+		CustomDNS:  customDNS,
+	}, nil
 }
 
-func waitInstance(ctx context.Context, client clients.IEC2Client, log log.Logger, id *string) (string, error) {
+func waitInstance(ctx context.Context, client clients.IEC2Client, log log.Logger, id *string) (*types.Instance, error) {
 	for {
 		time.Sleep(time.Second * 1)
 		out2, err := client.DescribeFleetInstances(ctx, &ec2.DescribeFleetInstancesInput{
@@ -112,7 +113,7 @@ func waitInstance(ctx context.Context, client clients.IEC2Client, log log.Logger
 		})
 		if err != nil {
 			log.Error(err)
-			return "", err
+			return nil, err
 		}
 
 		if len(out2.ActiveInstances) > 0 {
@@ -126,14 +127,14 @@ func waitInstance(ctx context.Context, client clients.IEC2Client, log log.Logger
 				})
 				if err != nil {
 					log.Error(err)
-					return "", err
+					return nil, err
 				}
 				if len(out3.Reservations) > 0 {
 					reservation := out3.Reservations[0]
 					if len(reservation.Instances) > 0 {
 						instance := reservation.Instances[0]
 						if instance.State.Name == types.InstanceStateNameRunning {
-							return *instance.InstanceId, nil
+							return &instance, nil
 						}
 					}
 				}
