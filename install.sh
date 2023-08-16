@@ -16,20 +16,14 @@ REPO=https://github.com/felipemarinho97/dev-spaces
 VERSION=$(curl -sI $REPO/releases/latest | grep -i "location:" | awk -F"/" '{ printf "%s", $NF }' | tr -d '\r')
 
 # Construct the release archive url
-URL=$REPO/releases/download/$VERSION/dev-spaces-$OS-$ARCH.tar.gz
+URL=$REPO/releases/download/$VERSION/dev-spaces-$VERSION-$OS-$ARCH.tar.gz
 
-# Download the release archive and extract it
+# Download the release archive and extract it on /tmp
 echo "Downloading $URL ..."
-curl -sL $URL | tar -xz
-
-# Move the binary to the current directory
-mv dev-spaces-$OS-$ARCH/dev-spaces .
-
-# Remove the release archive
-rm -rf dev-spaces-$OS-$ARCH
+curl -sL $URL | tar -xz -C /tmp
 
 # Make the binary executable
-chmod +x dev-spaces
+chmod +x /tmp/dev-spaces
 
 # Move the binary to a PATH under home directory
 HOME_BIN=$HOME/bin
@@ -51,5 +45,8 @@ if [[ ":$PATH:" != *":$HOME_BIN:"* ]]; then
     echo "export PATH=$HOME_BIN:\$PATH" >> $RCFILE
     source $RCFILE
 fi
+
+# create a symlink to the binary named 'ds'
+ln -sf $HOME_BIN/dev-spaces $HOME_BIN/ds
 
 echo "Done!"
