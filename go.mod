@@ -1,6 +1,6 @@
 module github.com/felipemarinho97/dev-spaces
 
-go 1.18
+go 1.21
 
 require (
 	github.com/aws/aws-sdk-go v1.43.41
