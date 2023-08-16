@@ -13,6 +13,14 @@ import (
 type Config struct {
 	// DefaultRegion is the default AWS region to use when making AWS API calls.
 	DefaultRegion string `koanf:"default_region"`
+	DNS           struct {
+		// Endpoint is the endpoint to use for the DNS provider.
+		Endpoint string `koanf:"endpoint"`
+		// Token is the token to use for the DNS provider.
+		Token string `koanf:"token"`
+		// Domain is the domain to use for SLD.
+		Domain string `koanf:"domain"`
+	} `koanf:"dynamicdns"`
 }
 
 var (

@@ -248,11 +248,11 @@ func GetCurrentFleetRequest(ctx context.Context, client clients.IEC2Client, name
 	return &current, nil
 }
 
-func CancelSpotRequest(ctx context.Context, client clients.IEC2Client, log log.Logger, name string) error {
+func CancelSpotRequests(ctx context.Context, client clients.IEC2Client, log log.Logger, name string) (int, error) {
 	requests, err := client.DescribeFleets(ctx, &ec2.DescribeFleetsInput{})
 	if err != nil {
 		log.Error("Error getting spot requests:", err)
-		return err
+		return 0, err
 	}
 
 	var requestID []string
@@ -260,23 +260,22 @@ func CancelSpotRequest(ctx context.Context, client clients.IEC2Client, log log.L
 		if (request.FleetState == types.FleetStateCodeActive || request.FleetState == types.FleetStateCodeSubmitted) &&
 			util.IsDevSpace(request.Tags, name) {
 			requestID = append(requestID, *request.FleetId)
-			break
 		}
 	}
 
 	if len(requestID) == 0 {
 		log.Error("No spot requests found")
-		return nil
+		return 0, nil
 	}
 
 	err = CancelFleetRequests(ctx, client, requestID)
 	if err != nil {
 		log.Error("Error cancelling spot request:", err)
-		return err
+		return 0, err
 	}
 
 	log.Info(fmt.Sprintf("Cancelled %d spot requests", len(requestID)))
-	return nil
+	return len(requestID), nil
 }
 
 func CancelFleetRequests(ctx context.Context, client clients.IEC2Client, ids []string) error {
