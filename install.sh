@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# abort on error
+set -e
+
 # Determine the OS (darwin, linux)
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 
