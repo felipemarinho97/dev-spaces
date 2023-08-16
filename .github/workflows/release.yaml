@@ -26,4 +26,5 @@ jobs:
         goarch: ${{ matrix.goarch }}
         goversion: "1.21"
         binary_name: "dev-spaces"
-        extra_files: CONFIGURATION.md README.md
+        project_path: "./cli"
+        extra_files: CONFIGURATION.md CREATING.md README.md
