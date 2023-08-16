@@ -2,77 +2,81 @@ package handlers
 
 import (
 	"context"
-	"os"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/felipemarinho97/dev-spaces/helpers"
 	"github.com/felipemarinho97/dev-spaces/util"
-	"github.com/olekukonko/tablewriter"
+)
+
+type Status types.BatchState
+type StatusSortOption string
+
+const (
+	StatusSortByName   StatusSortOption = "name"
+	StatusSortByStatus StatusSortOption = "status"
+	StatusSortByTime   StatusSortOption = "time"
 )
 
 type StatusOptions struct {
 	// Name of the dev space
 	Name string
+	// SortBy is the column to sort by
+	SortBy StatusSortOption
 }
 
-func (h *Handler) Status(ctx context.Context, opts StartOptions) error {
+type StatusItem struct {
+	Name         string
+	Status       Status
+	RequestId    string
+	CreateTime   string
+	ActivityStat string
+}
+
+func (h *Handler) Status(ctx context.Context, opts StatusOptions) ([]StatusItem, error) {
 	name := opts.Name
 	client := h.EC2Client
 
 	requests, err := helpers.GetFleetStatus(ctx, client, name)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	data := [][]string{}
+	items := toStatusItem(requests)
 
-	for _, request := range requests {
-		data = append(data, []string{
-			util.GetTag(request.Tags, "dev-spaces:name"),
-			string(request.FleetState),
-			*request.FleetId,
-			string(request.CreateTime.Local().Format(time.RFC3339)),
-			string(request.ActivityStatus),
+	// apply sort
+	sort.Slice(items, func(i, j int) bool {
+		switch opts.SortBy {
+		case StatusSortByName:
+			return items[i].Name < items[j].Name
+		case StatusSortByStatus:
+			return items[i].Status < items[j].Status
+		case StatusSortByTime:
+			return items[i].CreateTime < items[j].CreateTime
+		default:
+			return items[i].CreateTime < items[j].CreateTime
+		}
+	})
+
+	return items, nil
+}
+
+func toStatusItem(fleetData []types.FleetData) []StatusItem {
+	data := []StatusItem{}
+	for _, fleet := range fleetData {
+		data = append(data, StatusItem{
+			Name:         util.GetTag(fleet.Tags, "dev-spaces:name"),
+			Status:       Status(fleet.FleetState),
+			RequestId:    getOrNone(fleet.FleetId),
+			CreateTime:   string(fleet.CreateTime.Local().Format(time.RFC3339)),
+			ActivityStat: string(fleet.ActivityStatus),
 		})
 	}
-	sort.Slice(data, func(i, j int) bool {
-		di := data[i][3]
-		dj := data[j][3]
-		return di > dj
-	})
 
-	table := tablewriter.NewWriter(os.Stdout)
-	for _, row := range data {
-		if strings.Contains(row[1], string(types.BatchStateActive)) {
-			table.Rich(row, []tablewriter.Colors{{}, {tablewriter.Normal, tablewriter.FgGreenColor}})
-		} else if strings.Contains(row[1], string(types.BatchStateSubmitted)) || strings.Contains(row[1], string(types.BatchStateModifying)) {
-			table.Rich(row, []tablewriter.Colors{{}, {tablewriter.Normal, tablewriter.FgYellowColor}})
-		} else {
-			table.Rich(row, []tablewriter.Colors{{}, {tablewriter.Normal, tablewriter.FgHiRedColor}})
-		}
-	}
-	table.SetHeader([]string{
-		"Name",
-		"Request_State",
-		"Request_Id",
-		"Create_Time",
-		"Status",
-	})
-	table.SetAutoWrapText(false)
-	table.SetAutoFormatHeaders(true)
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetRowSeparator("")
-	table.SetHeaderLine(true)
-	table.SetBorder(false)
-	table.SetTablePadding("\t") // pad with tabs
-	table.SetNoWhiteSpace(true)
-	table.Render()
+	return data
+}
 
-	return nil
+func (s *Status) String() string {
+	return string(*s)
 }

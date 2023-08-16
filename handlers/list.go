@@ -3,12 +3,11 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/felipemarinho97/dev-spaces/helpers"
-	"github.com/olekukonko/tablewriter"
 )
 
 type OutputFormat string
@@ -18,44 +17,50 @@ const (
 	OutputFormatShort OutputFormat = "short"
 )
 
-type ListOptions struct {
-	Output OutputFormat
+type ListOptions struct{}
+
+type ListItem struct {
+	Name             string
+	Version          int64
+	LaunchTemplateID string
+	CreateTime       string
+	InstanceID       string
+	InstanceType     string
+	InstanceState    string
+	PublicDNS        string
+	PublicIP         string
+	KeyName          string
+	Zone             string
 }
 
-func (h *Handler) ListTemplates(ctx context.Context, opts ListOptions) error {
-	output := opts.Output
+func (h *Handler) ListSpaces(ctx context.Context, opts ListOptions) ([]ListItem, error) {
 	client := h.EC2Client
 
 	launchTemplates, err := helpers.GetLaunchTemplates(ctx, client)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	managedInstances, err := helpers.GetManagedInstances(ctx, client)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	header := []string{"Space Name", "Ver", "ID", "Create Time"}
-	if output == "wide" {
-		extra_headers := []string{"Instance ID", "Instance Type", "Instance State", "Public DNS", "Public IP", "Key Name", "Zone"}
-		header = append(header, extra_headers...)
-	}
-	table.SetHeader(header)
-	table.SetAutoWrapText(false)
-	table.SetAutoFormatHeaders(true)
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetRowSeparator("")
-	table.SetHeaderLine(true)
-	table.SetBorder(false)
-	table.SetTablePadding("\t") // pad with tabs
-	table.SetNoWhiteSpace(true)
+	items := toListItems(launchTemplates.LaunchTemplates, managedInstances)
 
-	for _, launchTemplate := range launchTemplates.LaunchTemplates {
+	return items, nil
+}
+
+func getOrNone(v *string) string {
+	if v == nil || *v == "" {
+		return "-"
+	}
+	return fmt.Sprint(*v)
+}
+
+func toListItems(launchTemplates []types.LaunchTemplate, managedInstances map[string]*types.Instance) []ListItem {
+	items := make([]ListItem, 0, len(launchTemplates))
+	for _, launchTemplate := range launchTemplates {
 		version := *launchTemplate.DefaultVersionNumber
 		name := *launchTemplate.LaunchTemplateName
 		if version != 1 {
@@ -64,36 +69,25 @@ func (h *Handler) ListTemplates(ctx context.Context, opts ListOptions) error {
 
 		instance := managedInstances[*launchTemplate.LaunchTemplateName]
 
-		row := []string{
-			name,
-			fmt.Sprint(*launchTemplate.DefaultVersionNumber),
-			*launchTemplate.LaunchTemplateId,
-			*aws.String(launchTemplate.CreateTime.Format("2006-01-02 15:04:05")),
+		item := ListItem{
+			Name:             name,
+			Version:          *launchTemplate.DefaultVersionNumber,
+			LaunchTemplateID: *launchTemplate.LaunchTemplateId,
+			CreateTime:       *aws.String(launchTemplate.CreateTime.Format("2006-01-02 15:04:05")),
 		}
 
-		if instance != nil && output == "wide" {
-			row = append(row, []string{
-				getOrNone(instance.InstanceId),
-				fmt.Sprint(instance.InstanceType),
-				strings.ToUpper(fmt.Sprint(instance.State.Name)),
-				getOrNone(instance.PublicDnsName),
-				getOrNone(instance.PublicIpAddress),
-				getOrNone(instance.KeyName),
-				getOrNone(instance.Placement.AvailabilityZone),
-			}...)
+		if instance != nil {
+			item.InstanceID = getOrNone(instance.InstanceId)
+			item.InstanceType = fmt.Sprint(instance.InstanceType)
+			item.InstanceState = strings.ToUpper(fmt.Sprint(instance.State.Name))
+			item.PublicDNS = getOrNone(instance.PublicDnsName)
+			item.PublicIP = getOrNone(instance.PublicIpAddress)
+			item.KeyName = getOrNone(instance.KeyName)
+			item.Zone = getOrNone(instance.Placement.AvailabilityZone)
 		}
 
-		table.Append(row)
+		items = append(items, item)
 	}
 
-	table.Render()
-
-	return nil
-}
-
-func getOrNone(v *string) string {
-	if v == nil || *v == "" {
-		return "-"
-	}
-	return fmt.Sprint(*v)
+	return items
 }

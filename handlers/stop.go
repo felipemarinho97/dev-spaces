@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/felipemarinho97/dev-spaces/helpers"
-	"github.com/felipemarinho97/dev-spaces/util"
 )
 
 type StopOptions struct {
@@ -12,24 +11,21 @@ type StopOptions struct {
 	Name string
 }
 
-func (h *Handler) Stop(ctx context.Context, opts StopOptions) error {
+type StopOutput struct {
+	// Quantity of instances that were stopped
+	Quantity int
+}
+
+func (h *Handler) Stop(ctx context.Context, opts StopOptions) (StopOutput, error) {
 	name := opts.Name
-	ub := util.NewUnknownBar("Stopping...")
-	ub.Start()
-	defer ub.Stop()
 
 	client := h.EC2Client
 	log := h.Logger
 
-	err := helpers.CancelSpotRequest(ctx, client, log, name)
+	qnt, err := helpers.CancelSpotRequests(ctx, client, log, name)
 	if err != nil {
-		return err
+		return StopOutput{}, err
 	}
 
-	err = helpers.CleanElasticIPs(ctx, client, name)
-	if err != nil {
-		return err
-	}
-	log.Info("Stopped")
-	return nil
+	return StopOutput{Quantity: qnt}, nil
 }

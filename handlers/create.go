@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/felipemarinho97/dev-spaces/helpers"
@@ -35,12 +36,20 @@ type CreateOptions struct {
 	HostAMI             *AMIFilter
 }
 
+type CreateOutput struct {
+	LaunchTemplateId *string
+	HostImage        *string
+	DevSpaceImage    *string
+	StorageVolumeId  *string
+	StorageSize      *int
+}
+
 type InstanceType types.InstanceType
 
-func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
+func (h *Handler) Create(ctx context.Context, opts CreateOptions) (CreateOutput, error) {
 	err := util.Validator.Struct(opts)
 	if err != nil {
-		return err
+		return CreateOutput{}, err
 	}
 	name := opts.Name
 	keyName := opts.KeyName
@@ -49,9 +58,6 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 	preferedInstanceType := opts.PreferedLaunchSpecs.InstanceType
 	securityGroupIds := opts.SecurityGroupIds
 	storageSize := int32(opts.StorageSize)
-	ub := util.NewUnknownBar("Bootstrapping..")
-	ub.Start()
-	defer ub.Stop()
 
 	client := h.EC2Client
 	log := h.Logger
@@ -59,10 +65,10 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 	// check if a launch template with the same name already exists
 	templateExists, err := helpers.TemplateExists(ctx, client, name)
 	if err != nil {
-		return err
+		return CreateOutput{}, err
 	}
 	if templateExists {
-		return fmt.Errorf("launch template with name %s already exists", name)
+		return CreateOutput{}, fmt.Errorf("launch template with name %s already exists", name)
 	}
 
 	if opts.StartupScriptPath == "" {
@@ -72,7 +78,7 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 		log.Info(fmt.Sprintf("Using custom startup script: %s", opts.StartupScriptPath))
 		script, err := util.Readfile(opts.StartupScriptPath)
 		if err != nil {
-			return err
+			return CreateOutput{}, err
 		}
 
 		startupScript = script
@@ -86,7 +92,7 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 		Owner: opts.DevSpaceAMI.Owner,
 	})
 	if err != nil {
-		return fmt.Errorf("error describing host ami: %v", err)
+		return CreateOutput{}, fmt.Errorf("error describing host ami: %v", err)
 	}
 	log.Debug(fmt.Sprintf("AMI filter used: ID '%s', Name '%s', Arch '%s', Owner '%s'", opts.DevSpaceAMI.ID, opts.DevSpaceAMI.Name, opts.DevSpaceAMI.Arch, opts.DevSpaceAMI.Owner))
 	log.Info(fmt.Sprintf("Using dev space AMI: %s", *devSpaceAMI.ImageLocation))
@@ -96,7 +102,7 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 	if opts.HostAMI == nil {
 		hostAMI, err = helpers.FindHostAMI(ctx, client, devSpaceAMI.Architecture)
 		if err != nil {
-			return err
+			return CreateOutput{}, err
 		}
 	} else {
 		hostAMI, err = helpers.GetImageFromFilter(ctx, client, helpers.AMIFilter{
@@ -106,7 +112,7 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 			Owner: opts.HostAMI.Owner,
 		})
 		if err != nil {
-			return err
+			return CreateOutput{}, err
 		}
 	}
 	log.Debug(fmt.Sprintf("Using host AMI: %s", *hostAMI.ImageLocation))
@@ -129,19 +135,19 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 		InstanceProfileArn: &instanceProfileArn,
 	})
 	if err != nil {
-		return err
+		return CreateOutput{}, err
 	}
 	log.Info(fmt.Sprintf("Spot task created: %s - Waiting instance to be assigned..", *taskRunner.FleetId))
 	id, err := helpers.WaitForFleetInstance(ctx, client, *taskRunner.FleetId, types.InstanceStateNameRunning)
 	log.Info(fmt.Sprintf("Instance assigned: %s", id))
 	if err != nil {
-		return err
+		return CreateOutput{}, err
 	}
 
 	// get the volume id associated with the instance
 	instanceData, err := helpers.GetInstanceData(ctx, client, id)
 	if err != nil {
-		return err
+		return CreateOutput{}, err
 	}
 	volumeId := instanceData.BlockDeviceMappings[0].Ebs.VolumeId
 	volumeZone := instanceData.Placement.AvailabilityZone
@@ -153,26 +159,26 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 		Tags:      util.GenerateTags(name),
 	})
 	if err != nil {
-		return err
+		return CreateOutput{}, err
 	}
 
 	// cancel the spot task
 	log.Info(fmt.Sprintf("Stopping instance: %s", id))
 	err = helpers.CancelFleetRequests(ctx, client, []string{*taskRunner.FleetId})
 	if err != nil {
-		return err
+		return CreateOutput{}, err
 	}
 
 	// delete the runner template
 	err = helpers.DeleteLaunchTemplate(ctx, client, name+"-runner")
 	if err != nil {
-		return err
+		return CreateOutput{}, err
 	}
 
 	log.Info(fmt.Sprintf("Waiting for instance: %s to finish.. This may take a few minutes..", id))
 	id, err = helpers.WaitForFleetInstance(ctx, client, *taskRunner.FleetId, types.InstanceStateNameTerminated)
 	if err != nil {
-		return err
+		return CreateOutput{}, err
 	}
 
 	// get the root device name fot this hostImage
@@ -200,11 +206,15 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) error {
 		},
 	})
 	if err != nil {
-		return err
+		return CreateOutput{}, err
 	}
 	log.Info(fmt.Sprintf("Launch template created: %s", *o.LaunchTemplateId))
 
-	log.Info(fmt.Sprintf("DevSpace \"%s\" created successfully.", name))
-
-	return nil
+	return CreateOutput{
+		LaunchTemplateId: o.LaunchTemplateId,
+		HostImage:        hostAMI.ImageLocation,
+		DevSpaceImage:    devSpaceAMI.ImageLocation,
+		StorageVolumeId:  volumeId,
+		StorageSize:      aws.Int(int(storageSize)),
+	}, nil
 }

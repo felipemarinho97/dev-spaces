@@ -41,7 +41,7 @@ func (h *Handler) Destroy(ctx context.Context, opts DestroyOptions) error {
 	}
 
 	// Destroy spot requests
-	err = helpers.CancelSpotRequest(ctx, client, log, name)
+	_, err = helpers.CancelSpotRequests(ctx, client, log, name)
 	if err != nil {
 		return err
 	}
