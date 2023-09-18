@@ -43,12 +43,16 @@ func StartCommand(c *cli.Context) error {
 		return err
 	}
 
+	loginCommand := fmt.Sprintf("ssh -i <your-key.pem> -p 2222 -o StrictHostKeyChecking=no root@%s", out.PublicIP)
+
 	// create SSH config entry
-	customDNS, err := util.CreateSSHConfig(*cfg, out.PublicIP, name)
+	configPath, err := util.CreateSSHConfig(*cfg, out.PublicIP, name)
 	if err != nil {
 		log.Warn(fmt.Sprintf("Error creating SSH config entry for %s: %s", name, err))
 	} else {
-		log.Info(fmt.Sprintf("Created SSH config entry for %s: %s", name, customDNS))
+		log.Info(fmt.Sprintf("Created SSH config entry for %s.", name))
+		log.Info(fmt.Sprintf("You can customize the SSH config entry at %s", configPath))
+		loginCommand = fmt.Sprintf("ssh -i <your-key.pem> root@%s", name)
 	}
 
 	if wait {
@@ -58,13 +62,9 @@ func StartCommand(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		host := customDNS
-		if host == "" {
-			host = out.PublicIP
-		}
 
 		log.Info("You can now ssh into your dev space with the following command: ")
-		fmt.Printf("$ ssh -i <your-key.pem> -p 2222 -o StrictHostKeyChecking=no root@%s\n", host)
+		fmt.Printf("$ %s\n", loginCommand)
 	}
 
 	return nil

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/felipemarinho97/dev-spaces/cli/config"
 )
@@ -19,13 +20,17 @@ func CreateSSHConfig(config config.Config, ip, name string) (string, error) {
 		return "", err
 	}
 
+	// discard the version at the end of name (the number after the /)
+	re := regexp.MustCompile(`(.*)\/.*`)
+	name = re.ReplaceAllString(name, "$1")
+
 	// add entry to ssh config
 	err = putConfigEntry(sshConfigPath, name, ip)
 	if err != nil {
 		return "", err
 	}
 
-	return name, nil
+	return fmt.Sprintf("%s/%s", sshConfigPath, name), nil
 }
 
 func getSSHConfigPath() (string, error) {
@@ -55,13 +60,14 @@ func getSSHConfigPath() (string, error) {
 		}
 	}
 
-	// Include directive does not exist, append it
-	sshConfig, err = os.OpenFile(sshConfigPath, os.O_APPEND|os.O_WRONLY, 0600)
+	// Include directive does not exist, append it to the beginning of the file
+	sshConfigContent, err := os.ReadFile(sshConfigPath)
 	if err != nil {
 		return "", err
 	}
 
-	_, err = sshConfig.WriteString(fmt.Sprintf("Include %s/*\n", customSSHConfigPath))
+	newSSHConfigContent := fmt.Sprintf("Include %s/*\n%s", customSSHConfigPath, string(sshConfigContent))
+	err = os.WriteFile(sshConfigPath, []byte(newSSHConfigContent), 0644)
 	if err != nil {
 		return "", err
 	}
@@ -97,16 +103,45 @@ func createSSHConfig() (string, error) {
 }
 
 func putConfigEntry(sshConfigPath, name, ip string) error {
-	// create entry file
-	sshConfig, err := os.Create(fmt.Sprintf("%s/%s", sshConfigPath, name))
-	if err != nil {
-		return err
-	}
+	// check if entry already exists
+	sshConfig, err := os.Open(fmt.Sprintf("%s/%s", sshConfigPath, name))
+	// if the file does not exist, create it
+	if os.IsNotExist(err) {
+		// create entry file
+		sshConfig, err := os.Create(fmt.Sprintf("%s/%s", sshConfigPath, name))
+		if err != nil {
+			return err
+		}
+		defer sshConfig.Close()
 
-	// write the entry
-	_, err = sshConfig.WriteString(fmt.Sprintf("Host %s\n\tHostName %s\n\tPort 2222\n", name, ip))
-	if err != nil {
-		return err
+		// write the entry
+		_, err = sshConfig.WriteString(fmt.Sprintf("Host %s\n\tHostName %s\n\tPort 2222\n\tStrictHostKeyChecking no\n\tUser root\n\t# IdentityFile <~/.ssh/your-key.pem>\n", name, ip))
+		if err != nil {
+			return err
+		}
+	}
+	defer sshConfig.Close()
+
+	// replace the HostName with the new IP address
+	scanner := bufio.NewScanner(sshConfig)
+	for scanner.Scan() {
+		line := scanner.Text()
+		re := regexp.MustCompile(`HostName\s.*`)
+		if re.MatchString(line) {
+			// replace the HostName
+			fileContent, err := os.ReadFile(fmt.Sprintf("%s/%s", sshConfigPath, name))
+			if err != nil {
+				return err
+			}
+
+			newFileContent := re.ReplaceAllString(string(fileContent), fmt.Sprintf("HostName %s", ip))
+			err = os.WriteFile(fmt.Sprintf("%s/%s", sshConfigPath, name), []byte(newFileContent), 0644)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
 	}
 
 	return nil

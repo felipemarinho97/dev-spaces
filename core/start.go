@@ -89,7 +89,7 @@ func (h *Handler) Start(ctx context.Context, startOptions StartOptions) (StartOu
 		InstanceID: *instance.InstanceId,
 		Type:       string(instance.InstanceType),
 		PublicIP:   ip,
-		Port:       22,
+		Port:       2222,
 		DNS:        *instance.PublicDnsName,
 	}, nil
 }
