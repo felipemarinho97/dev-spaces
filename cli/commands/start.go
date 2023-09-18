@@ -43,12 +43,12 @@ func StartCommand(c *cli.Context) error {
 		return err
 	}
 
-	// add dns record
-	customDNS, err := util.CreateDNSRecord(*cfg, out.PublicIP, name)
+	// create SSH config entry
+	customDNS, err := util.CreateSSHConfig(*cfg, out.PublicIP, name)
 	if err != nil {
-		log.Warn(fmt.Printf("Error creating DNS record: %s. Falling back to IPv4 address: %s", err, out.PublicIP))
+		log.Warn(fmt.Sprintf("Error creating SSH config entry for %s: %s", name, err))
 	} else {
-		log.Info(fmt.Printf("Created DNS record: %s -> %s", out.PublicIP, customDNS))
+		log.Info(fmt.Sprintf("Created SSH config entry for %s: %s", name, customDNS))
 	}
 
 	if wait {
