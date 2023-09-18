@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 
+	"github.com/felipemarinho97/dev-spaces/cli/clients"
 	"github.com/felipemarinho97/dev-spaces/cli/config"
 	"github.com/felipemarinho97/dev-spaces/cli/util"
 	"github.com/felipemarinho97/dev-spaces/core"
@@ -40,15 +41,16 @@ func StartCommand(c *cli.Context) error {
 		Timeout:   timeout,
 	})
 	if err != nil {
+		log.Error("Error starting dev space" + err.Error())
 		return err
 	}
 
 	// add dns record
-	customDNS, err := util.CreateDNSRecord(*cfg, out.PublicIP, name)
+	customDNS, err := clients.CreateDNSRecord(*cfg, out.PublicIP, name)
 	if err != nil {
-		log.Warn(fmt.Printf("Error creating DNS record: %s. Falling back to IPv4 address: %s", err, out.PublicIP))
+		log.Warn(fmt.Sprintf("Error creating DNS record. Falling back to IPv4 address: %s", out.PublicIP))
 	} else {
-		log.Info(fmt.Printf("Created DNS record: %s -> %s", out.PublicIP, customDNS))
+		log.Info(fmt.Sprintf("Created DNS record: %s -> %s", out.PublicIP, customDNS))
 	}
 
 	if wait {

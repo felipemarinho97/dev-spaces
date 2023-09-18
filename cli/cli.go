@@ -218,6 +218,7 @@ func GetCLI() *cli.App {
 			Description: "Tools for configuring the dev space. You can use this sub-commands to change instance type, storage size, dev-space region etc.",
 			Aliases:     []string{"cfg"},
 			Category:    ADM,
+			Usage:       "scale, copy",
 			Subcommands: []*cli.Command{
 				{
 					Name:        "scale",
@@ -281,6 +282,54 @@ func GetCLI() *cli.App {
 						},
 					},
 					Usage: "-n <name> -r <region> -z <availability-zone>",
+				},
+			},
+		},
+		{
+			Name:        "dns",
+			Description: "Tools for configuring the dev space DNS",
+			Category:    ADM,
+			Usage:       "configure, update",
+			Subcommands: []*cli.Command{
+				{
+					Name:        "configure",
+					Description: "Configure automatic DNS assignment for the dev space",
+					Action:      commands.DNSConfigureCommand,
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:     "endpoint",
+							Aliases:  []string{"e"},
+							Usage:    "The endpoint used to update the DNS records",
+							Required: false,
+						},
+						&cli.StringFlag{
+							Name:     "domain",
+							Aliases:  []string{"d"},
+							Usage:    "The Second Leval Domain (SLD) of the DNS addressess created by the service",
+							Required: false,
+						},
+						&cli.StringFlag{
+							Name:     "token",
+							Aliases:  []string{"t"},
+							Usage:    "The DNS service token",
+							Required: false,
+						},
+					},
+					Usage: "[ -t <token> ]",
+				},
+				{
+					Name:        "update",
+					Description: "Update the DNS record for the dev space",
+					Action:      commands.DNSUpdate,
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:     "name",
+							Aliases:  []string{"n"},
+							Usage:    "The name of the dev-space",
+							Required: true,
+						},
+					},
+					Usage: "-n <name>",
 				},
 			},
 		},

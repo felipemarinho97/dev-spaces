@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/parsers/toml"
 	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/providers/structs"
+	"github.com/knadh/koanf/v2"
 )
 
 type Config struct {
@@ -23,8 +24,9 @@ type Config struct {
 }
 
 var (
-	k                 = koanf.New(".")
-	AppConfig *Config = &Config{}
+	k                  = koanf.New(".")
+	configPath         = ""
+	AppConfig  *Config = &Config{}
 )
 
 func LoadConfig() error {
@@ -49,6 +51,7 @@ func LoadConfig() error {
 			if err != nil {
 				return err
 			}
+			configPath = _file
 			break
 		}
 	}
@@ -57,6 +60,33 @@ func LoadConfig() error {
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (c *Config) Save() error {
+	err := k.Load(structs.Provider(c, "koanf"), nil)
+	if err != nil {
+		return err
+	}
+
+	tomlParser := toml.Parser()
+	b, err := tomlParser.Marshal(k.Raw())
+	if err != nil {
+		return err
+	}
+
+	f, err := os.OpenFile(configPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+
+	_, err = f.Write(b)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Config saved to", configPath)
 
 	return nil
 }

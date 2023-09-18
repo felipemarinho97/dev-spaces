@@ -142,3 +142,13 @@ func Map[A any, B any](input []A, m func(A) B) []B {
 	}
 	return output
 }
+
+func Filter[A any](input []A, f func(A) bool) []A {
+	output := make([]A, 0, len(input))
+	for _, element := range input {
+		if f(element) {
+			output = append(output, element)
+		}
+	}
+	return output
+}

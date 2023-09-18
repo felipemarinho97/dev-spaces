@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/felipemarinho97/dev-spaces/core/helpers"
+	"github.com/felipemarinho97/dev-spaces/core/util"
 )
 
 type OutputFormat string
@@ -17,7 +18,9 @@ const (
 	OutputFormatShort OutputFormat = "short"
 )
 
-type ListOptions struct{}
+type ListOptions struct {
+	Name string
+}
 
 type ListItem struct {
 	Name             string
@@ -47,6 +50,11 @@ func (h *Handler) ListSpaces(ctx context.Context, opts ListOptions) ([]ListItem,
 	}
 
 	items := toListItems(launchTemplates.LaunchTemplates, managedInstances)
+	if opts.Name != "" {
+		items = util.Filter(items, func(item ListItem) bool {
+			return strings.Contains(item.Name, opts.Name)
+		})
+	}
 
 	return items, nil
 }
