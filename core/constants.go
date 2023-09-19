@@ -43,6 +43,12 @@ touch $MOUNTPOINT/root/.ssh/authorized_keys
 TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
 curl http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key -H "X-aws-ec2-metadata-token: $TOKEN" > $MOUNTPOINT/root/.ssh/authorized_keys
 
+## for each user, add the public key to authorized_keys
+for user in $(ls $MOUNTPOINT/home); do
+	mkdir -p $MOUNTPOINT/home/$user/.ssh/
+	cat $MOUNTPOINT/root/.ssh/authorized_keys > $MOUNTPOINT/home/$user/.ssh/authorized_keys
+done
+
 ## boot the chroot machine
 export SYSTEMD_SECCOMP=0
 systemd-nspawn --boot --quiet --machine=devspace --capability=all -D $MOUNTPOINT/
