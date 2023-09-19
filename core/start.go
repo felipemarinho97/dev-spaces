@@ -60,6 +60,16 @@ func (h *Handler) Start(ctx context.Context, startOptions StartOptions) (StartOu
 		return StartOutput{}, err
 	}
 
+	// get volume id from template tags
+	volumeID := util.GetTag(template.Tags, "dev-spaces:volume-id")
+
+	// wait until ebs volume is detached
+	log.Info("Waiting for EBS volume to be available...")
+	err = helpers.WaitUntilEBSUnattached(ctx, client, volumeID)
+	if err != nil {
+		return StartOutput{}, err
+	}
+
 	out, err := helpers.CreateSpotRequest(ctx, client, tName, tVersion, cpusSpec, minMemory, maxPrice, template, timeout)
 	if err != nil {
 		return StartOutput{}, err
@@ -78,7 +88,6 @@ func (h *Handler) Start(ctx context.Context, startOptions StartOptions) (StartOu
 	ip := *instance.PublicIpAddress
 
 	// attach ebs volume
-	volumeID := util.GetTag(template.Tags, "dev-spaces:volume-id")
 	err = helpers.AttachEBSVolume(ctx, client, *instance.InstanceId, volumeID)
 	if err != nil {
 		return StartOutput{}, err

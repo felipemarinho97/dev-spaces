@@ -88,17 +88,24 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 	}
 
 	// power off devspace
+	timeout := 60 * time.Second
 	sshClient, err := ssh.NewSSHClient(*currentInstance.PublicIpAddress, 22, "ec2-user", string(identityKey))
 	if err != nil {
-		return EditOutput{}, err
+		sshClient, err = ssh.NewSSHClient(*currentInstance.PublicIpAddress, 22, "root", string(identityKey))
+		if err != nil {
+			return EditOutput{}, err
+		}
 	}
-	_, err = sshClient.Run("sudo machinectl terminate devspace")
+	_, err = sshClient.Run("sudo machinectl terminate devspace", timeout)
 	if err != nil {
-		return EditOutput{}, err
+		log.Warn("Error powering off devspace: ", err)
 	}
-	_, err = sshClient.Run("sudo umount /dev/sdf1")
+	log.Debug("Powered off devspace")
+	_, err = sshClient.Run("sudo umount /dev/sdf1", timeout)
 	if err != nil {
-		return EditOutput{}, err
+		log.Warn("Error unmounting EBS volume: ", err)
+	} else {
+		log.Debug("Unmounted EBS volume")
 	}
 
 	// detach ebs volume
@@ -106,6 +113,7 @@ func (h *Handler) EditSpec(ctx context.Context, opts EditSpecOptions) (EditOutpu
 	if err != nil {
 		return EditOutput{}, err
 	}
+	log.Debug("Detached EBS volume with id: ", volumeID)
 
 	// wait until ebs volume is detached
 	err = helpers.WaitUntilEBSUnattached(ctx, client, volumeID)

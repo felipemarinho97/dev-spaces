@@ -144,7 +144,7 @@ func GetCLI() *cli.App {
 					Name:     "ami",
 					Aliases:  []string{"i"},
 					Required: true,
-					Usage:    "Amazon Machine Image to use",
+					Usage:    "Amazon Machine Image to use. Example: \"id:ami-123456789\" or \"arch:x86_64,name:my-ami*,owner:123456789012\"",
 				},
 				&cli.StringFlag{
 					Name:    "instance-profile-arn",
@@ -161,8 +161,8 @@ func GetCLI() *cli.App {
 				&cli.StringFlag{
 					Name:    "prefered-instance-type",
 					Aliases: []string{"t"},
-					Value:   "t2.micro",
-					Usage:   "Prefered instance type to use, this will optimize the price for this type",
+					Value:   "mem:1,cpus:2",
+					Usage:   "Prefered instance type to use, this will optimize the price for this type. Valid examples: \"mem:1.5,cpus:1\" or \"type:t2.micro\"",
 				},
 				&cli.StringFlag{
 					Name:  "custom-host-ami",

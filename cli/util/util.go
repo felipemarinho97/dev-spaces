@@ -19,7 +19,7 @@ func ParseInstanceSpec(spec string) (InstanceSpec, error) {
 		return InstanceSpec{}, nil
 	}
 	// check if it's a valid spec with regex
-	re := regexp.MustCompile(`^(mem:(\d+\.\d+)|cpus:(\d+)|type:([\w\.]+)|,|[\w\.]+)+$`)
+	re := regexp.MustCompile(`^((mem:\s*(\d+(\.\d+)?),?\s*|cpus:\s*(\d+),?\s*|type:\s*([\w\.]+),?\s*){0,3}|,|[\w\.]+)+$`)
 	if !re.MatchString(spec) {
 		fmt.Println("Invalid instance spec:", spec)
 		return InstanceSpec{}, fmt.Errorf("invalid instance spec: %s", spec)
@@ -30,15 +30,15 @@ func ParseInstanceSpec(spec string) (InstanceSpec, error) {
 	for _, part := range parts {
 		keyValue := strings.Split(part, ":")
 
-		switch keyValue[0] {
+		switch strings.TrimSpace(keyValue[0]) {
 		case "mem":
-			mem, _ := strconv.ParseFloat(keyValue[1], 64)
+			mem, _ := strconv.ParseFloat(strings.TrimSpace(keyValue[1]), 64)
 			instanceSpec.MinMemory = int32(float32(mem) * 1024)
 		case "cpus":
-			cpus, _ := strconv.Atoi(keyValue[1])
+			cpus, _ := strconv.Atoi(strings.TrimSpace(keyValue[1]))
 			instanceSpec.MinCPU = int32(cpus)
 		case "type":
-			instanceSpec.InstanceType = keyValue[1]
+			instanceSpec.InstanceType = strings.TrimSpace(keyValue[1])
 		default:
 			return InstanceSpec{
 				InstanceType: keyValue[0],
