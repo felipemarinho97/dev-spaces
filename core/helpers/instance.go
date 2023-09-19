@@ -70,6 +70,7 @@ func WaitUntilReachable(host string, port int) error {
 			conn.Close()
 			return nil
 		}
+		time.Sleep(1 * time.Second)
 	}
 }
 
