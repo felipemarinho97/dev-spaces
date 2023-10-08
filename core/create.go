@@ -180,6 +180,8 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) (CreateOutput,
 	if err != nil {
 		return CreateOutput{}, err
 	}
+	// wait for ebs volume to be available
+	helpers.WaitUntilEBSUnattached(ctx, client, *volumeId)
 
 	// get the root device name fot this hostImage
 	hostDeviceName := *hostAMI.RootDeviceName
