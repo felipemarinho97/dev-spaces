@@ -35,7 +35,6 @@ func NewSSHClient(host string, port int, user string, identityKey string) (*SSHC
 	}
 	conn, err := agentDialer.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
-		conn.Close()
 		return nil, err
 	}
 	err = conn.SetDeadline(time.Now().Add(60 * time.Second))

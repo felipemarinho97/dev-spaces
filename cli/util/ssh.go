@@ -34,6 +34,12 @@ func CreateSSHConfig(config config.Config, ip, name string) (string, error) {
 }
 
 func getSSHConfigPath() (string, error) {
+	// create the custom ssh config directory
+	err := os.MkdirAll(fmt.Sprintf("%s/.ssh/%s", os.Getenv("HOME"), customSSHConfigPath), 0700)
+	if err != nil {
+		return "", err
+	}
+
 	// check if ssh default config exists, if not create it
 	sshConfigPath, err := findSSHConfig()
 	if err != nil {
@@ -68,12 +74,6 @@ func getSSHConfigPath() (string, error) {
 
 	newSSHConfigContent := fmt.Sprintf("Include %s/*\n%s", customSSHConfigPath, string(sshConfigContent))
 	err = os.WriteFile(sshConfigPath, []byte(newSSHConfigContent), 0644)
-	if err != nil {
-		return "", err
-	}
-
-	// create the custom ssh config directory
-	err = os.MkdirAll(fmt.Sprintf("%s/.ssh/%s", os.Getenv("HOME"), customSSHConfigPath), 0700)
 	if err != nil {
 		return "", err
 	}
