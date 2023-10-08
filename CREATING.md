@@ -21,7 +21,7 @@ This AMI have the advantage of supporting running docker inside the Dev Space.
 
 Once created, you can use the command `dev-spaces start` to start the space.
 
-    $ dev-spaces start -n MyAmazonLinux2022
+    $ dev-spaces start -n MyAmazonLinux2023 -c 1 -m 1 --wait
 
 Now, your instance will be available to ssh into from the port `2222`.
 
