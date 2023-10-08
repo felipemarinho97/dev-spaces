@@ -2,6 +2,9 @@ package commands
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
+	"strings"
 
 	"github.com/felipemarinho97/dev-spaces/cli/util"
 	"github.com/felipemarinho97/dev-spaces/core"
@@ -9,6 +12,9 @@ import (
 )
 
 func CreateCommand(c *cli.Context) error {
+	// if there is a signal CTRL+C, destroy the devspace
+	handleSignal(c)
+
 	h := c.Context.Value("handler").(*core.Handler)
 	log := h.Logger
 
@@ -67,9 +73,24 @@ func CreateCommand(c *cli.Context) error {
 		StorageSize:      storageSize,
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			log.Warn(fmt.Sprintf("DevSpace \"%s\" already exists.", name))
+			return err
+		}
 		return err
 	}
 
 	log.Info(fmt.Sprintf("DevSpace \"%s\" created successfully.", name))
 	return nil
+}
+
+func handleSignal(c *cli.Context) {
+	s := make(chan os.Signal, 1)
+	signal.Notify(s, os.Interrupt)
+	go func() {
+		for range s {
+			DestroyCommand(c)
+			os.Exit(0)
+		}
+	}()
 }

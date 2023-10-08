@@ -40,25 +40,25 @@ func (h *Handler) Destroy(ctx context.Context, opts DestroyOptions) error {
 	// Destroy spot requests
 	_, err = helpers.CancelSpotRequests(ctx, client, log, name)
 	if err != nil {
-		return err
+		log.Error(err.Error())
 	}
 
 	// Destroy security groups
 	err = ds.destroySecurityGroups(ctx, name)
 	if err != nil {
-		return err
+		log.Error(err.Error())
 	}
 
 	// Destroy launch templates
 	err = ds.destroyLaunchTemplate(ctx, name)
 	if err != nil {
-		return err
+		log.Error(err.Error())
 	}
 
 	// Destroy all the created volumes for this template
 	err = ds.destroyVolumes(ctx, name)
 	if err != nil {
-		return err
+		log.Error(err.Error())
 	}
 
 	return nil
@@ -71,6 +71,8 @@ func (ds *DestroySpec) destroyVolumes(ctx context.Context, templateName string) 
 	}
 
 	for _, volume := range volumes {
+		// wait until ebs volume is detached
+		helpers.WaitUntilEBSUnattached(ctx, ds.ec2Client, *volume.VolumeId)
 		ds.log.Info(fmt.Sprintf("Destroying volume %s", *volume.VolumeId))
 		_, err := ds.ec2Client.DeleteVolume(ctx, &ec2.DeleteVolumeInput{
 			VolumeId: volume.VolumeId,
