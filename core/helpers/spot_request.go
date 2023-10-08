@@ -127,6 +127,10 @@ func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in Cre
 				ResourceType: types.ResourceTypeInstance,
 				Tags:         util.GenerateTags(*in.Name),
 			},
+			{
+				ResourceType: types.ResourceTypeVolume,
+				Tags:         util.GenerateTags(*in.Name),
+			},
 		},
 	}
 
@@ -168,6 +172,12 @@ func CreateSpotTaskRunner(ctx context.Context, client clients.IEC2Client, in Cre
 	lt, err := client.CreateLaunchTemplate(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(fmt.Sprintf("%s-runner", *in.Name)),
 		LaunchTemplateData: &launchSpecification,
+		TagSpecifications: []types.TagSpecification{
+			{
+				ResourceType: types.ResourceTypeLaunchTemplate,
+				Tags:         util.GenerateTags(*in.Name),
+			},
+		},
 	})
 	if err != nil {
 		return nil, err
