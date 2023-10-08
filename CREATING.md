@@ -1,20 +1,21 @@
 # Creating a DevSpace
 
-This document describes how to bootstrap a Dev Space using the command `dev-spaces create`. This new version has a better approach on creating the environment because it's more generic and it's easier to manage. Also, it's much more faster (just take few seconds to bootstap a space) than the previous version.
-
-## Instance Profile
-
-There is no need to create an instance profile with EBS permissions because the `start` command will wait until the instance is ready and attach the EBS Volume by itself. You can still specify the instance profile in the create command if you want to.
+This document describes how to bootstrap a Dev Space using the command `dev-spaces create`. For a complete list of all the options, run `dev-spaces create --help`.
 
 ## SSH Key Pair
 
-Make sure you have a SSH key pair in your AWS account. You can see [here](BOOTSTRAPPING.md#create-a-key-pair-to-ssh-into-the-instance) how to create one using the `aws cli`. If you want your key pair to be availiable in all regions, you can follow [this tutorial](https://aws.amazon.com/premiumsupport/knowledge-center/ec2-ssh-key-pair-regions/) from a AWS Support.
+Make sure you have a SSH key pair in your AWS account. You can see [here](BOOTSTRAPPING.md#create-a-key-pair-to-ssh-into-the-instance) how to create one using the `aws cli`. Also, you can use the [AWS Console](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#prepare-key-pair) to create a key pair. If you want your key pair to be availiable in all regions, you can follow [this tutorial](https://aws.amazon.com/premiumsupport/knowledge-center/ec2-ssh-key-pair-regions/) from a AWS Support.
+
+It's also possible to use an existing key pair, just make sure you have the private key file in your local machine.
 
 ## Creating the Space
 
-The command below will use the pre-defined template to create an space with Amazon Linux 2022 AMI.
+The command below will use the pre-defined template to create an space with Amazon Linux 2023 AMI.
 
-    $ dev-spaces create -n MyAmazonLinux2022 -k MyKeyPair -i ami-034b81f0f1dd96797
+```bash
+$ export AWS_REGION=us-east-1
+$ dev-spaces create -n MyAmazonLinux2023 -k MyKeyPair -i 'owner:amazon,name:*al2023*minimal*'
+```
 
 This AMI have the advantage of supporting running docker inside the Dev Space.
 
@@ -26,16 +27,16 @@ Now, your instance will be available to ssh into from the port `2222`.
 
 ## Command Parameters
 
-_Parameter_|_Alias_|_Description_|_Example_|
-|:--:|:--:|:--:|:--:|
-|`--name`|`-n`|The name of the Dev Space|`MyDevSpace`|
-|`--key-name`|`-k`|The name of the SSH key pair|`MyKeyPair`|
-|`--ami`|`-a`|The AMI ID|`ami-034b81f0f1dd96797`|
-|`--prefered-instance-type`|`-t`|The type of the instance|`t2.micro`|
-|`--instance-profile-arn`|`-p`|The ARN of the instance profile|`arn:aws:iam::123456789012:instance-profile/MyInstanceProfile`|
-|`--custom-host-ami`|-|Custom AMI to use for the host - use this flag in combination with `--custom-startup-script`|`ami-034b81f0f1dd96797`|
-|`--custom-startup-script`|-|Custom startup script file to use for the host|`./myscript.sh`|
-|`--security-group-ids`|-|A list of IDs of the security groups to use|`sg-12345678`|
+_Parameter_|_Alias_|_Description_|_Example_|_Mandatory_
+|:--:|:--:|:--:|:--:|:--:|
+|`--name`|`-n`|The name of the Dev Space|`MyDevSpace`|✓|
+|`--key-name`|`-k`|The name of the SSH key pair|`MyKeyPair`|✓|
+|`--ami`|`-i`|Amazon Machine Image to use|`ami-034b81f0f1dd96797`|✓|
+|`--prefered-instance-type`|`-t`|The type of the instance|`t2.micro`| |
+|`--instance-profile-arn`|`-p`|The ARN of the instance profile|`arn:aws:iam::123456789012:instance-profile/MyInstanceProfile`| |
+|`--custom-host-ami`|-|Custom AMI to use for the host - use this flag in combination with `--custom-startup-script`|`ami-034b81f0f1dd96797`| |
+|`--custom-startup-script`|-|Custom startup script file to use for the host|`./myscript.sh`| |
+|`--security-group-ids`|-|A list of IDs of the security groups to use|`sg-12345678`| |
 
 ## Troubleshooting
 
@@ -51,6 +52,20 @@ SSH into the host instance (port 22):
     ec2-user:~$ cat /var/log/cloud-init.log
 
 Common problems are user-script failing to run due to wrong filesystem mount type, wrong permissions, etc.
+
+## Recommended AMIs
+
+It's highly recommended to use the following AMIs, as they were tested and are known to work with Dev Spaces. The **Amazon Linux** ones are the most recommended.
+For better startup time, use the `minimal` version of the AMI.
+
+| Image | Description | Source | Selector |
+| ----- | ----------- | ------ | --------- |
+| amazon-linux-2023-minimal | Amazon Linux 2023 | [Amazon Linux](https://aws.amazon.com/linux/amazon-linux-2023/) | `owner:amazon,name:*al2023*minimal*` |
+| amazon-linux-2023 | Amazon Linux 2023 | [Amazon Linux](https://aws.amazon.com/linux/amazon-linux-2023/) | `owner:amazon,name:*al2023*ami-2023*` |
+| amazon-linux-2022 | Amazon Linux 2022 | [Amazon Linux](https://aws.amazon.com/amazon-linux-2/release-notes/) | `owner:amazon,name:*al2022*` |
+| amazon-linux-2 | Amazon Linux 2 | [Amazon Linux](https://aws.amazon.com/amazon-linux-2/release-notes/) | `owner:amazon,name:*amzn2*` |
+| ubuntu-focal-20.04-server | Ubuntu 20.04 LTS | [Ubuntu](https://cloud-images.ubuntu.com/focal/current/) | `owner:099720109477,name:ubuntu*hvm-ssd*20.04*amd64-server*` |
+| ubuntu-bionic-18.04-server | Ubuntu 18.04 LTS | [Ubuntu](https://cloud-images.ubuntu.com/bionic/current/) | `owner:099720109477,name:ubuntu*hvm-ssd*18.04*amd64-server*` |
 
 ## Extra: Building a Ultra-Optimized DevSpace
 

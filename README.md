@@ -67,21 +67,48 @@ For the legacy way of bootstraping (for advanced users), please, follow these st
 If you have any issue during the bootstrap progress, contact the author for more details on how to proceed.
 
 # Exemples
-### Starting a DevSpace
+## Starting a DevSpace
 
 You can specify the minimum desired vCPUs and Memory (GBs), as well the max price (in hours) you are willing to pay for the resources.
 
 ```bash
-$ dev-spaces start --name MySpace --min-cpus 2 --min-memory 4 --max-price 0.05
+$ ds --region us-east-1 start --name MySpace \
+    --min-cpus 2 \
+    --min-memory 4 \
+    --max-price 0.05 \
+    --wait
 
-spot-request-id=sfr-fac050b3-2db3-4d2f-9efa-2403eb239650
-instance-id=i-001f2561a626115f5
-instance-type=m1.large
+✓ Waiting for instance to be running... (0/-, 0 it/min) 
+✓ Instance started with id: i-044716c726b039014 and type: m1.large (0/-, 0 it/min) 
+✓ Attached EBS volume with id: vol-08b3a681b2b20dcf5 (0/-, 0 it/min)                
+✓ Created SSH config entry for MySpace. (0/-, 0 it/min)                  
+✓ You can customize the SSH config entry at ~/.ssh/config.d/dev-spaces/MySpace (0/-, 0 it/min) 
+✓ Waiting for port 2222 (ssh) to be reachable. This can take a few minutes... (0/-, 0 it/min)
+✓ You can now ssh into your dev space with the following command:  (0/-, 0 it/min)                                  
+$ ssh -i <your-key.pem> root@MySpace
 ```
 
 DevSpaces will be listening by default on SSH port `2222`.
 
-### Listing my DevSpaces
+**Tip**: To omit the `--region` parameter, you can set the `AWS_REGION` environment variable. You can also use shorthands like `-c`, `-m`, `-n` instead of `--min-cpus`, `--min-memory`, `--name`, etc.
+
+```bash
+$ export AWS_REGION=us-east-1
+$ dev-spaces start -n MySpace -c 2 -m 4 --max-price 0.05 --wait
+```
+
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `--name` | The name of the DevSpace | |
+| `--min-cpus` | Minimum number of vCPUs | 0 |
+| `--min-memory` | Minimum amount of memory in GB | 0 |
+| `--max-price` | Maximum price ($) per hour for the spot request | 0.50 |
+| `--timeout` | Timeout for the spot request | 1h0m0s |
+| `--wait` | Wait for DevSpace instance to be ready for SSH | false |
+
+
+## Listing my DevSpaces
 
 You can list the most recent (last 48h) created DevSpaces.
 
@@ -103,7 +130,7 @@ arch            lt-08fb20577838aa54d    2022-07-05 22:02:00     1         [...] 
 al2022-05       lt-0ca2cf57f06544590    2022-07-05 23:01:10     1         [...]   -
 ```
 
-### Terminating DevSpaces
+## Terminating DevSpaces
 
 When you are done, you can use the `stop` command to terminate the DevSpace instance(s).
 
@@ -117,7 +144,7 @@ This will not delete your files, just terminate the DevSpace instance.
 
 ---
 
-### Creating a DevSpace
+## Creating a DevSpace
 
 The example below shows an example on how to create a DevSpace using the `create` command.
 
@@ -129,7 +156,9 @@ You can also optionaly specify the instance profile ARN `--instance-profile-arn`
 
 The `--preferred-instance-type` option helps to create your DevSpace in an avaliability zone with the best possible price for that instance type (this is important because once created, the DevSpace will be locked in that zone).
 
-### Destroying a DevSpace
+For a complete list of all the options, run `dev-spaces create --help`. View the [Creating a DevSpace](CREATING.md) document for more details.
+
+## Destroying a DevSpace
 
 The command below will destroy the DevSpace instance and all it's associated resources like EBS Volumes, Launch Templates, Security Groups, etc.
 
