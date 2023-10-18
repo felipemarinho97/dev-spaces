@@ -4,7 +4,7 @@ This document describes how to bootstrap a Dev Space using the command `dev-spac
 
 ## SSH Key Pair
 
-Make sure you have a SSH key pair in your AWS account. You can see [here](BOOTSTRAPPING.md#create-a-key-pair-to-ssh-into-the-instance) how to create one using the `aws cli`. Also, you can use the [AWS Console](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#prepare-key-pair) to create a key pair. If you want your key pair to be availiable in all regions, you can follow [this tutorial](https://aws.amazon.com/premiumsupport/knowledge-center/ec2-ssh-key-pair-regions/) from a AWS Support.
+Make sure you have a SSH key pair in your AWS account. You can see [here](KEYPAIR.md#create-a-key-pair-to-ssh-into-the-instance) how to create one using the `aws cli`. Also, you can use the [AWS Console](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#prepare-key-pair) to create a key pair. If you want your key pair to be availiable in all regions, you can follow [this tutorial](https://aws.amazon.com/premiumsupport/knowledge-center/ec2-ssh-key-pair-regions/) from a AWS Support.
 
 It's also possible to use an existing key pair, just make sure you have the private key file in your local machine.
 
