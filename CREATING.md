@@ -12,14 +12,22 @@ After creating or importing a key pair, you will use the **name** of the key pai
 
 ## Creating the Space
 
-The command below will use the pre-defined template to create an space with Amazon Linux 2023 AMI.
+The simplest way to create a Dev Space is by using the `dev-spaces create` command with the `--key-name` and `--name` parameters. This will create a Dev Space with the default options. The default AMI (`--ami`) is the latest Amazon Linux available. This AMI have the advantage of being more stable, having faster startup times and is well tested in this project.
 
 ```bash
 $ export AWS_REGION=us-east-1
+$ dev-spaces create -n MyDevSpace -k MyKeyPair
+```
+
+If you want to use a different AMI, you can use the `--ami` (`-i`) parameter.
+
+```bash
 $ dev-spaces create -n MyAmazonLinux2023 -k MyKeyPair -i 'owner:amazon,name:*al2023*minimal*'
 ```
 
-This AMI have the advantage of supporting running docker inside the Dev Space. See the [Recommended AMIs](#recommended-amis) section for more information.
+See the [Recommended AMIs](#recommended-amis) section for more information.
+
+For all the available options, run `dev-spaces create --help`. Also, see the [Command Parameters](#command-parameters) section for more information.
 
 Once created, you can use the command `dev-spaces start` to start the space.
 
@@ -33,7 +41,7 @@ _Parameter_|_Alias_|_Description_|_Example_|_Mandatory_
 |:--:|:--:|:--:|:--:|:--:|
 |`--name`|`-n`|The name of the Dev Space|`MyDevSpace`|✓|
 |`--key-name`|`-k`|The name of the SSH key pair|`MyKeyPair`|✓|
-|`--ami`|`-i`|Amazon Machine Image to use|`ami-034b81f0f1dd96797`|✓|
+|`--ami`|`-i`|Amazon Machine Image to use|`ami-034b81f0f1dd96797`| |
 |`--prefered-instance-type`|`-t`|The type of the instance|`t2.micro`| |
 |`--instance-profile-arn`|`-p`|The ARN of the instance profile|`arn:aws:iam::123456789012:instance-profile/MyInstanceProfile`| |
 |`--custom-host-ami`|-|Custom AMI to use for the host - use this flag in combination with `--custom-startup-script`|`ami-034b81f0f1dd96797`| |
@@ -68,6 +76,8 @@ For better startup time, use the `minimal` version of the AMI.
 | amazon-linux-2 | Amazon Linux 2 | [Amazon Linux](https://aws.amazon.com/amazon-linux-2/release-notes/) | `owner:amazon,name:*amzn2*` |
 | ubuntu-focal-20.04-server | Ubuntu 20.04 LTS | [Ubuntu](https://cloud-images.ubuntu.com/focal/current/) | `owner:099720109477,name:ubuntu*hvm-ssd*20.04*amd64-server*` |
 | ubuntu-bionic-18.04-server | Ubuntu 18.04 LTS | [Ubuntu](https://cloud-images.ubuntu.com/bionic/current/) | `owner:099720109477,name:ubuntu*hvm-ssd*18.04*amd64-server*` |
+
+If you have any issues with any of these AMIs, please open an issue. Also, if you found an AMI that works well with DevSpaces, please open a PR to add it to this list.
 
 ## Extra: Building a Ultra-Optimized DevSpace
 
