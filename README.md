@@ -66,7 +66,7 @@ For the legacy way of bootstraping (for advanced users), please, follow these st
 
 If you have any issue during the bootstrap progress, contact the author for more details on how to proceed.
 
-# Exemples
+# Examples
 ## Starting a DevSpace
 
 You can specify the minimum desired vCPUs and Memory (GBs), as well the max price (in hours) you are willing to pay for the resources.
@@ -156,7 +156,7 @@ You can also optionaly specify the instance profile ARN `--instance-profile-arn`
 
 The `--preferred-instance-type` option helps to create your DevSpace in an avaliability zone with the best possible price for that instance type (this is important because once created, the DevSpace will be locked in that zone).
 
-For a complete list of all the options, run `dev-spaces create --help`. View the [Creating a DevSpace](CREATING.md) document for more details.
+For a complete list of all the options, run `dev-spaces create --help`. View the [Creating a DevSpace](CREATING.md) document for full guide on how to create a DevSpace.
 
 ## Destroying a DevSpace
 
