@@ -19,7 +19,7 @@ Host <devspace-name>
 
 This file is automatically updated by DevSpace, so any time you run `dev-spaces start`, the field `HostName` will be updated with the current public IP of your DevSpace project.
 
-**Important:** If you created your DevSpace with **Amazon Linux**, you will need to change the `User` field to `ec2-user` instead of `root`.
+**Important:** If you created your DevSpace with **Amazon Linux**, you may need to change the `User` field to `ec2-user` instead of `root` in case you are having issues.
 
 ### Manual Configuration
 
