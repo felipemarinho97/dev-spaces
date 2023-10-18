@@ -149,7 +149,7 @@ This will not delete your files, just terminate the DevSpace instance.
 The example below shows an example on how to create a DevSpace using the `create` command.
 
 ```bash
-$ dev-spaces create --name MySpace --key MyKey --ami ami-1234567890
+$ dev-spaces create --name MySpace --key-name MyKey --ami ami-1234567890
 ```
 
 You can also optionaly specify the instance profile ARN `--instance-profile-arn`, the storage size (in GBs) `--storage-size`, and the preferred instance type `--preferred-instance-type`. See all the options [here](CREATING.md#command-parameters).
