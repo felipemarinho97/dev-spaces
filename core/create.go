@@ -84,6 +84,12 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) (CreateOutput,
 		startupScript = script
 	}
 
+	// validate key pair
+	_, err = helpers.GetKeyPair(ctx, client, keyName)
+	if err != nil {
+		return CreateOutput{}, err
+	}
+
 	// get the image of the dev space machine
 	devSpaceAMI, err := helpers.GetImageFromFilter(ctx, client, helpers.AMIFilter{
 		ID:    opts.DevSpaceAMI.ID,
