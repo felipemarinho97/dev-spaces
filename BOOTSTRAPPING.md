@@ -5,17 +5,7 @@ This section describes how to bootstrap a Dev Space.
 
 ## Create a key pair to SSH into the instance
 
-Now, create a key pair and store it in a file, if you already have a key pair, you can skip this step.
-
-```bash
-$ aws ec2 create-key-pair --key-name MyKeyPair --query 'KeyMaterial' --output text > MyKeyPair.pem
-```
-
-Remember to give the right permissions to the file.
-
-```bash
-$ chmod 400 MyKeyPair.pem
-```
+Follow the steps in the [Create a key pair](KEYPAIR.md) section to create a key pair and store it in a file.
 
 ## Use the CLI to bootstrap a Dev Space
 

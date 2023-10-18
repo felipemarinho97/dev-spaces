@@ -4,9 +4,11 @@ This document describes how to bootstrap a Dev Space using the command `dev-spac
 
 ## SSH Key Pair
 
-Make sure you have a SSH key pair in your AWS account. You can see [here](BOOTSTRAPPING.md#create-a-key-pair-to-ssh-into-the-instance) how to create one using the `aws cli`. Also, you can use the [AWS Console](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#prepare-key-pair) to create a key pair. If you want your key pair to be availiable in all regions, you can follow [this tutorial](https://aws.amazon.com/premiumsupport/knowledge-center/ec2-ssh-key-pair-regions/) from a AWS Support.
+Make sure you have a SSH key pair in your AWS account. You can see [here](KEYPAIR.md#create-a-key-pair-to-ssh-into-the-instance) how to create one using the `aws cli`. Also, you can use the [AWS Console](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#prepare-key-pair) to create a key pair. If you want your key pair to be availiable in all regions, you can follow [this tutorial](https://aws.amazon.com/premiumsupport/knowledge-center/ec2-ssh-key-pair-regions/) from a AWS Support.
 
-It's also possible to use an existing key pair, just make sure you have the private key file in your local machine.
+It's also possible to use an existing key pair, just make sure you have the private key file in your local machine. For that, you will have to import the key pair to the region you want to use. You can see the [AWS Documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#prepare-key-pair) to import a key pair.
+
+After creating or importing a key pair, you will use the **name** of the key pair on the parameter `--key-name` or `-k` of the `dev-spaces create` command.
 
 ## Creating the Space
 
@@ -17,7 +19,7 @@ $ export AWS_REGION=us-east-1
 $ dev-spaces create -n MyAmazonLinux2023 -k MyKeyPair -i 'owner:amazon,name:*al2023*minimal*'
 ```
 
-This AMI have the advantage of supporting running docker inside the Dev Space.
+This AMI have the advantage of supporting running docker inside the Dev Space. See the [Recommended AMIs](#recommended-amis) section for more information.
 
 Once created, you can use the command `dev-spaces start` to start the space.
 
