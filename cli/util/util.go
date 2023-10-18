@@ -67,7 +67,7 @@ func ParseAMIFilter(filter string) (AMIFilter, error) {
 	}
 	// filter format: "id:ami-12345678,arch:x86_64,name:my-ami,owner:123456789012"
 	// check if it's a valid filter with regex
-	re = regexp.MustCompile(`^(id:([a-z0-9]{8})|arch:([\w\.]+)|name:([\w\.\-\*]+)|owner:([\w\.]+)|,)+$`)
+	re = regexp.MustCompile(`^(id:(ami-[a-z0-9]+)|arch:([\w\.]+)|name:([\w\.\-\*]+)|owner:([\w\.]+)|,?)+$`)
 	if !re.MatchString(filter) {
 		fmt.Println("Invalid AMI filter:", filter)
 		return AMIFilter{}, fmt.Errorf("invalid AMI filter: %s", filter)

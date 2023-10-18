@@ -93,3 +93,103 @@ func TestParseInstanceSpec(t *testing.T) {
 		})
 	}
 }
+
+func TestParseAMIFilter(t *testing.T) {
+	type args struct {
+		filter string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    AMIFilter
+		wantErr bool
+	}{
+		{
+			name: "the filter is just the ami id",
+			args: args{
+				filter: "ami-0df435f331839b2d6",
+			},
+			want: AMIFilter{
+				ID: "ami-0df435f331839b2d6",
+			},
+			wantErr: false,
+		},
+		{
+			name: "the filter is just the ami id on filter format",
+			args: args{
+				filter: "id:ami-0df435f331839b2d6",
+			},
+			want: AMIFilter{
+				ID: "ami-0df435f331839b2d6",
+			},
+			wantErr: false,
+		},
+		{
+			name: "the filter is name and arch",
+			args: args{
+				filter: "name:my-ami,arch:x86_64",
+			},
+			want: AMIFilter{
+				Name: "my-ami",
+				Arch: "x86_64",
+			},
+			wantErr: false,
+		},
+		{
+			name: "the filter is name and owner",
+			args: args{
+				filter: "name:my-ami,owner:123456789012",
+			},
+			want: AMIFilter{
+				Name:  "my-ami",
+				Owner: "123456789012",
+			},
+			wantErr: false,
+		},
+		{
+			name: "the filter is name with wildcards and owner as fixed string",
+			args: args{
+				filter: "name:my-ami*,owner:amazon",
+			},
+			want: AMIFilter{
+				Name:  "my-ami*",
+				Owner: "amazon",
+			},
+			wantErr: false,
+		},
+		{
+			name: "the filter is id and name",
+			args: args{
+				filter: "id:ami-0df435f331839b2d6,name:my-ami",
+			},
+			want: AMIFilter{
+				ID:   "ami-0df435f331839b2d6",
+				Name: "my-ami",
+			},
+			wantErr: false,
+		},
+		{
+			name: "the filter is id and owner",
+			args: args{
+				filter: "id:ami-0df435f331839b2d6,owner:123456789012",
+			},
+			want: AMIFilter{
+				ID:    "ami-0df435f331839b2d6",
+				Owner: "123456789012",
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseAMIFilter(tt.args.filter)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseAMIFilter() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseAMIFilter() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

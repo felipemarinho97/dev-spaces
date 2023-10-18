@@ -37,11 +37,13 @@ type AMIFilter struct {
 func GetImageFromFilter(ctx context.Context, client clients.IEC2Client, filter AMIFilter) (*types.Image, error) {
 	input := &ec2.DescribeImagesInput{
 		Filters: []types.Filter{},
-		Owners:  []string{},
 	}
 
 	if filter.ID != "" {
-		input.ImageIds = []string{filter.ID}
+		input.Filters = append(input.Filters, types.Filter{
+			Name:   aws.String("image-id"),
+			Values: []string{filter.ID},
+		})
 	}
 
 	if filter.Name != "" {
