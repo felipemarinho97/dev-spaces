@@ -13,11 +13,13 @@ Host <devspace-name>
     HostName 18.118.32.169
     Port 2222
     User root # if you want, you can change this to the default user of your image
-  	StrictHostKeyChecking no
+    StrictHostKeyChecking no
     IdentityFile ~/.ssh/my_id_rsa # <-- Add this line with the path to your SSH key
 ```
 
 This file is automatically updated by DevSpace, so any time you run `dev-spaces start`, the field `HostName` will be updated with the current public IP of your DevSpace project.
+
+**Important:** If you created your DevSpace with **Amazon Linux**, you will need to change the `User` field to `ec2-user` instead of `root`.
 
 ### Manual Configuration
 
@@ -38,7 +40,7 @@ Keep in mind that by manually creating this entry, the DevSpaces tool will not b
 
 ## VSCode Configuration
 
-Once you have your SSH config entry ready, you can proceed to configure VSCode to connect to your DevSpace project. To do so, open the command palette (Ctrl+Shift+P) and search for the `Remote-SSH: Connect to Host...` command. Select the SSH config entry for your DevSpace project and wait for VSCode to connect to your DevSpace project.
+Once you have your SSH config entry ready (with the IdentityFile path filled), you can proceed to configure VSCode to connect to your DevSpace project. To do so, inside VSCode open the command palette (Ctrl+Shift+P) and search for the `Remote-SSH: Connect to Host...` command. Select the SSH config entry for your DevSpace project and wait for VSCode to connect to your DevSpace project.
 
 It's also possible to connect to your DevSpace from the command line using the `code` command. To do so, run the following command:
 
