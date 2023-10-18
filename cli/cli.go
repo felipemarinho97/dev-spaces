@@ -141,10 +141,10 @@ func GetCLI() *cli.App {
 					Usage:    "Name of the SSH key pair to use",
 				},
 				&cli.StringFlag{
-					Name:     "ami",
-					Aliases:  []string{"i"},
-					Required: true,
-					Usage:    "Amazon Machine Image to use. Example: \"id:ami-123456789\" or \"arch:x86_64,name:my-ami*,owner:123456789012\"",
+					Name:    "ami",
+					Aliases: []string{"i"},
+					Usage:   "Amazon Machine Image to use. Example: \"id:ami-123456789\" or \"arch:x86_64,name:my-ami*,owner:123456789012\"",
+					Value:   "owner:amazon,name:al*-ami-minimal-*",
 				},
 				&cli.StringFlag{
 					Name:    "instance-profile-arn",
