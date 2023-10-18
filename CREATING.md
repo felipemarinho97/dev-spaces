@@ -8,7 +8,7 @@ Make sure you have a SSH key pair in your AWS account. You can see [here](KEYPAI
 
 It's also possible to use an existing key pair, just make sure you have the private key file in your local machine. For that, you will have to import the key pair to the region you want to use. You can see the [AWS Documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#prepare-key-pair) to import a key pair.
 
-After creating or importing a key pair, you will use the **name** of the key pair on the parameter `--key-name` of the `dev-spaces create` command.
+After creating or importing a key pair, you will use the **name** of the key pair on the parameter `--key-name` or `-k` of the `dev-spaces create` command.
 
 ## Creating the Space
 
