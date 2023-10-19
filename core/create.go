@@ -145,10 +145,10 @@ func (h *Handler) Create(ctx context.Context, opts CreateOptions) (CreateOutput,
 	}
 	log.Info(fmt.Sprintf("Spot task created: %s - Waiting instance to be assigned..", *taskRunner.FleetId))
 	id, err := helpers.WaitForFleetInstance(ctx, client, *taskRunner.FleetId, types.InstanceStateNameRunning)
-	log.Info(fmt.Sprintf("Instance assigned: %s", id))
 	if err != nil {
 		return CreateOutput{}, err
 	}
+	log.Info(fmt.Sprintf("Instance assigned: %s", id))
 
 	// get the volume id associated with the instance
 	instanceData, err := helpers.GetInstanceData(ctx, client, id)

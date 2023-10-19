@@ -29,6 +29,9 @@ See the [Recommended AMIs](#recommended-amis) section for more information.
 
 For all the available options, run `dev-spaces create --help`. Also, see the [Command Parameters](#command-parameters) section for more information.
 
+> **Note**
+If you are using your AWS account for the first time, it is possible that the first attempt fail on "CreateFleet" because the AWS is performing additional validation on your account. You should receive an email from AWS informing you about this. If that happens, just try again after a few minutes.
+
 Once created, you can use the command `dev-spaces start` to start the space.
 
     $ dev-spaces start -n MyAmazonLinux2023 -c 1 -m 1 --wait
