@@ -76,6 +76,8 @@ func CreateCommand(c *cli.Context) error {
 		if strings.Contains(err.Error(), "already exists") {
 			log.Warn(fmt.Sprintf("DevSpace \"%s\" already exists.", name))
 			return err
+		} else {
+			DestroyCommand(c)
 		}
 		return err
 	}

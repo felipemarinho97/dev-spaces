@@ -103,5 +103,23 @@ func WaitForFleetInstance(ctx context.Context, client clients.IEC2Client, reques
 			}
 
 		}
+
+		// get fleet history
+		out3, err := client.DescribeFleetHistory(ctx, &ec2.DescribeFleetHistoryInput{
+			FleetId:   &requestID,
+			StartTime: aws.Time(time.Now().Add(-24 * time.Hour)),
+		})
+		if err != nil {
+			continue
+		}
+
+		if len(out3.HistoryRecords) > 0 {
+			// iterate over history records, if there is a record with a status of error, return error and print error message
+			for _, record := range out3.HistoryRecords {
+				if record.EventType == "error" && record.EventInformation.EventDescription != nil {
+					return "", fmt.Errorf("error creating instance: %s", *record.EventInformation.EventDescription)
+				}
+			}
+		}
 	}
 }
