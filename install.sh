@@ -53,4 +53,5 @@ fi
 ln -sf $HOME_BIN/dev-spaces $HOME_BIN/ds
 
 echo "Done!"
+echo "Run 'source $RCFILE' to use 'dev-spaces' or 'ds' command on the current shell or open a new terminal"
 echo "Run 'dev-spaces --help' or 'ds --help' to get started"
